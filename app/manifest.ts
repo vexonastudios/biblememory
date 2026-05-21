@@ -2,14 +2,14 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Scripture Builder',
-    short_name: 'Scripture',
+    name: 'Inscribed',
+    short_name: 'Inscribed',
     description:
       'Memorize Bible verses using the Builder Method — phrase-by-phrase audio repetition with voice recall. Hands-free, perfect for driving.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#090d1a',
-    theme_color: '#090d1a',
+    background_color: '#ffffff',
+    theme_color: '#961931',
     orientation: 'portrait-primary',
     categories: ['education', 'lifestyle'],
     icons: [

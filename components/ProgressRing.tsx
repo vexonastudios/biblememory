@@ -18,7 +18,7 @@ export default function ProgressRing({ current, total }: Props) {
         <circle
           cx="36" cy="36" r={radius}
           fill="none"
-          stroke="rgba(255,255,255,0.08)"
+          stroke="var(--border)"
           strokeWidth="5"
         />
         {/* Progress */}

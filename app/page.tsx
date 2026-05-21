@@ -19,8 +19,13 @@ interface FetchedVerse {
 export default function HomePage() {
   const router = useRouter();
   const { setVerse } = useSessionStore();
-  const { translation: defaultTranslation, setTranslation } = useSettingsStore();
+  const { translation: defaultTranslation, setTranslation, theme, setTheme } = useSettingsStore();
   const dueCount = useLibraryStore((s) => s.dueCount());
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
+    setTheme(nextTheme);
+  };
 
   const [translation, setLocalTranslation] = useState<'BSB' | 'KJV'>(defaultTranslation);
   const [loading, setLoading] = useState(false);
@@ -113,8 +118,8 @@ export default function HomePage() {
         <div className="logo-wrap">
           <div className="logo-icon">✦</div>
           <div>
-            <h1 className="logo-title">Scripture Builder</h1>
-            <p className="logo-sub">The Builder Method for Bible memorization</p>
+            <h1 className="logo-title">Inscribed</h1>
+            <p className="logo-sub">Write God's Word on the tablet of your heart</p>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -126,6 +131,32 @@ export default function HomePage() {
           <Link href="/library" id="library-link" className="settings-link">
             Library
           </Link>
+          <button
+            onClick={toggleTheme}
+            className="settings-link theme-toggle-btn"
+            style={{ padding: '8px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            title={`Theme: ${theme}. Click to change.`}
+            aria-label="Toggle Theme"
+          >
+            {theme === 'light' && (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" width="20" height="20">
+                <circle cx="12" cy="12" r="5"/>
+                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+              </svg>
+            )}
+            {theme === 'dark' && (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" width="20" height="20">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            )}
+            {theme === 'system' && (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" width="20" height="20">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+                <line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+            )}
+          </button>
           <Link href="/settings" id="settings-link" className="settings-link">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22">
               <circle cx="12" cy="12" r="3"/>
@@ -156,7 +187,7 @@ export default function HomePage() {
           <div className="how-arrow">→</div>
           <div className="how-step">
             <span className="how-num">4</span>
-            <span className="how-txt">Own it forever</span>
+            <span className="how-txt">Write it on your heart</span>
           </div>
         </div>
 

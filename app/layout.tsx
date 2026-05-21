@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar';
+import ThemeProvider from '@/components/ThemeProvider';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -8,11 +9,11 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,          // Prevents accidental pinch-zoom during active sessions
   viewportFit: 'cover',         // Safe area for notch phones (iPhone X+)
-  themeColor: '#090d1a',
+  themeColor: '#961931',
 };
 
 export const metadata: Metadata = {
-  title: 'Scripture Builder — Bible Memory App',
+  title: 'Inscribed — Bible Memory App',
   description:
     'Memorize Bible verses using the Builder Method: phrase-by-phrase audio repetition with voice recall. ElevenLabs powered, hands-free design perfect for driving.',
   keywords: ['Bible memorization', 'Scripture memory', 'builder method', 'audio Bible'],
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Scripture Builder',
+    title: 'Inscribed',
     startupImage: [
       {
         url: '/icons/apple-touch-icon.png',
@@ -33,7 +34,7 @@ export const metadata: Metadata = {
 
   // Open Graph
   openGraph: {
-    title: 'Scripture Builder — Bible Memory App',
+    title: 'Inscribed — Bible Memory App',
     description: 'Memorize Bible verses with audio repetition and spaced review.',
     type: 'website',
     locale: 'en_US',
@@ -71,8 +72,26 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         {/* Prevent blue highlight on tap on mobile */}
         <style>{`* { -webkit-tap-highlight-color: transparent; }`}</style>
+        
+        {/* Synchronous script to prevent theme flash on reload */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                const settings = JSON.parse(localStorage.getItem('bible-memory-settings'));
+                const theme = settings?.state?.theme || 'light';
+                if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                  document.documentElement.classList.add('dark-theme');
+                } else {
+                  document.documentElement.classList.remove('dark-theme');
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
       </head>
       <body>
+        <ThemeProvider />
         <ServiceWorkerRegistrar />
         {children}
       </body>

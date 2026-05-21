@@ -20,6 +20,7 @@ export default function SettingsPage() {
     repeatCount, setRepeatCount,
     translation, setTranslation,
     matchThreshold, setMatchThreshold,
+    theme, setTheme,
   } = useSettingsStore();
 
   const [apiKeyInput, setApiKeyInput] = useState(elevenLabsApiKey);
@@ -177,6 +178,26 @@ export default function SettingsPage() {
           <p className="section-desc trans-note">
             BSB (Berean Standard Bible) — modern, clear, fully public domain.<br/>
             KJV (King James Version) — traditional, public domain.
+          </p>
+        </section>
+
+        {/* App Theme */}
+        <section className="settings-section">
+          <h2 className="section-heading">App Theme</h2>
+          <div className="trans-toggle">
+            {(['light', 'dark', 'system'] as const).map((t) => (
+              <button
+                key={t}
+                id={`theme-${t}`}
+                className={`trans-btn ${theme === t ? 'trans-active' : ''}`}
+                onClick={() => setTheme(t)}
+              >
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </button>
+            ))}
+          </div>
+          <p className="section-desc">
+            Choose light theme, dark theme, or sync with your system theme settings.
           </p>
         </section>
       </div>
