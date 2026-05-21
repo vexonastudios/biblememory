@@ -2017,3 +2017,141 @@ input, select, textarea { font-family: inherit; }
   animation: pulse 2s ease infinite;
 }
 .due-badge:hover { background: rgba(248,113,113,0.20); }
+
+/* ══════════════════════════════════════════════════════════════════
+   PWA SAFE AREA + MOBILE RESPONSIVE
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Safe area insets for notch phones */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* 44px minimum touch targets */
+button, a { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+input, select { min-height: 44px; }
+input[type="range"] { min-height: auto; }
+
+/* ── Mobile ≤640px ─────────────────────────────────────────────── */
+@media (max-width: 640px) {
+
+  /* Home */
+  .home-page { padding: 0 16px 100px; }
+  .home-header { padding: 14px 0 12px; flex-wrap: wrap; gap: 8px; }
+  .logo-title { font-size: 18px; }
+  .logo-sub { display: none; }
+  .home-header > div:last-child { gap: 6px; }
+  .how-it-works { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .how-it-works .how-arrow { display: none; }
+  .how-it-works .how-step { flex-direction: column; align-items: flex-start; gap: 4px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; }
+  .verse-full-text { font-size: 16px; padding: 16px; }
+  .search-input { font-size: 16px; }
+  .phrase-input { font-size: 16px; }
+  .start-btn { font-size: 15px; padding: 14px; }
+  .review-mode-banner { padding: 14px; gap: 10px; }
+  .review-mode-icon { font-size: 24px; }
+  .review-mode-text h3 { font-size: 14px; }
+  .review-mode-text p { font-size: 12px; }
+
+  /* Session */
+  .session-topbar { padding: 10px 14px; }
+  .session-content { padding: 14px; }
+  .active-screen { gap: 18px; }
+  .phrase-chunks { font-size: 18px; line-height: 1.6; }
+  .phrase-display { padding: 20px 16px; min-height: 90px; }
+  .idle-preview-text { font-size: 16px; }
+  .idle-info { font-size: 13px; }
+  .begin-btn { font-size: 15px; padding: 14px; max-width: 100%; }
+  .mic-ring { width: 76px; height: 76px; }
+  .complete-title { font-size: 24px; }
+  .complete-actions { flex-direction: column; align-items: stretch; }
+  .complete-btn.primary { text-align: center; justify-content: center; }
+
+  /* Review */
+  .review-header { padding: 12px 16px; }
+  .review-title { font-size: 17px; }
+  .review-subtitle { display: none; }
+  .review-setup { padding: 14px 16px 80px; gap: 14px; }
+  .review-card { padding: 16px; }
+  .review-word-display { font-size: 17px; line-height: 2; padding: 16px 16px 0; }
+  .review-status-bar { padding: 10px 16px; font-size: 13px; }
+  .review-stats { padding: 10px 16px 0; gap: 5px; }
+  .review-controls { padding: 10px 16px 0; }
+  .review-how { flex-direction: column; gap: 6px; padding: 12px 14px; }
+  .review-how .how-arrow { display: none; }
+  .score-num { font-size: 24px; }
+  .score-card { padding: 12px 14px; min-width: 75px; }
+  .review-score-grid { gap: 8px; }
+
+  /* Library */
+  .library-header { padding: 12px 16px; }
+  .library-title { font-size: 17px; }
+  .library-stats-bar { display: grid; grid-template-columns: 1fr 1fr; padding: 0; }
+  .lib-stat { padding: 12px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); }
+  .lib-stat:nth-child(4), .lib-stat:nth-child(7) { border-right: none; }
+  .lib-stat-divider { display: none; }
+  .lib-stat-num { font-size: 22px; }
+  .lib-tabs { padding: 10px 16px 0; overflow-x: auto; gap: 2px; }
+  .lib-tab { padding: 8px 12px; font-size: 13px; white-space: nowrap; }
+  .library-main { padding: 14px; }
+  .card-body { padding: 12px 14px; gap: 7px; }
+  .card-ref { font-size: 14px; }
+  .card-text { font-size: 13px; }
+  .card-footer { flex-wrap: wrap; gap: 8px; }
+  .card-actions { width: 100%; justify-content: flex-end; }
+  .card-review-btn { flex: 1; text-align: center; padding: 8px 10px; }
+  .lib-empty { padding: 40px 16px; }
+  .lib-empty-icon { font-size: 40px; }
+
+  /* Settings */
+  .settings-page { padding: 0 16px 80px; }
+  .settings-header { padding: 16px 0 14px; }
+  .settings-title { font-size: 18px; }
+  .settings-section { padding: 16px; }
+  .settings-input { font-size: 16px; }
+  .api-key-row { flex-direction: column; }
+  .save-btn { width: 100%; padding: 12px; font-size: 14px; }
+  .voice-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .slider-row { flex-wrap: wrap; }
+  .settings-slider { width: 100%; }
+
+  /* Modal */
+  .modal-box { padding: 22px 18px; }
+  .modal-actions { flex-direction: column-reverse; gap: 8px; }
+  .modal-cancel, .modal-confirm { width: 100%; text-align: center; justify-content: center; padding: 12px; }
+}
+
+/* ── Small phone ≤390px ─────────────────────────────────────────── */
+@media (max-width: 390px) {
+  .logo-title { font-size: 15px; }
+  .how-it-works { grid-template-columns: 1fr; }
+  .review-word-display { font-size: 15px; }
+  .lib-stat-num { font-size: 20px; }
+  .complete-title { font-size: 20px; }
+  .phrase-chunks { font-size: 16px; }
+}
+
+/* ── Landscape phone ─────────────────────────────────────────────── */
+@media (max-height: 500px) and (orientation: landscape) {
+  .session-content { padding: 6px 16px; }
+  .active-screen { gap: 10px; }
+  .mic-ring { width: 58px; height: 58px; }
+  .phrase-display { min-height: 64px; padding: 12px 14px; }
+  .phrase-chunks { font-size: 15px; }
+  .idle-preview-text { font-size: 14px; }
+  .begin-btn { padding: 10px; }
+  .review-word-display { font-size: 15px; padding: 10px 16px 0; }
+}
+
+/* ── PWA standalone mode ─────────────────────────────────────────── */
+@media (display-mode: standalone) {
+  .home-page,
+  .review-setup,
+  .library-main,
+  .settings-page {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+}

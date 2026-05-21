@@ -1,1 +1,13 @@
-fix: Suspense boundary for useSearchParams on review page
+feat: PWA + mobile responsive
+
+- app/manifest.ts: Web app manifest (standalone, dark theme, shortcuts for Library + Recite)
+- public/sw.js: Service worker (cache-first TTS, network-first Bible API, stale-while-revalidate shell)
+- components/ServiceWorkerRegistrar.tsx: Silent SW registration on first load
+- app/layout.tsx: Apple PWA meta tags, viewportFit cover for notch phones, Inter 800 weight
+- public/icons/: 192px, 512px, apple-touch-icon
+- app/globals.css: Full mobile responsive (640px, 390px, landscape, PWA standalone safe-area)
+  - 16px inputs to prevent iOS zoom
+  - 44px minimum touch targets
+  - env(safe-area-inset-*) for notch/home-bar padding
+  - Library stats 2x2 grid on mobile
+  - Session/review/settings all optimized for small screens
