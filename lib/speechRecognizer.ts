@@ -15,7 +15,9 @@ export interface RecognizerOptions {
   onError: (error: string) => void;
 }
 
-let recognition: SpeechRecognition | null = null;
+// Browser-only type — use any to avoid server-side TS errors
+let recognition: any = null;
+
 
 export function isSpeechRecognitionSupported(): boolean {
   return typeof window !== 'undefined' &&
@@ -40,7 +42,7 @@ export function startListening(options: RecognizerOptions): void {
   recognition!.lang = 'en-US';
   recognition!.maxAlternatives = 1;
 
-  recognition!.onresult = (event: SpeechRecognitionEvent) => {
+  recognition!.onresult = (event: any) => {
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const result = event.results[i];
       options.onResult({
@@ -55,7 +57,7 @@ export function startListening(options: RecognizerOptions): void {
     options.onEnd();
   };
 
-  recognition!.onerror = (event: SpeechRecognitionErrorEvent) => {
+  recognition!.onerror = (event: any) => {
     options.onError(event.error);
   };
 
