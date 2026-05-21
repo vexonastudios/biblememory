@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSessionStore } from '@/lib/store/sessionStore';
 import { useSettingsStore } from '@/lib/store/settingsStore';
+import { useLibraryStore } from '@/lib/store/libraryStore';
 import { buildAccumulatedPhrases } from '@/lib/phraseParser';
 import { buildRepeatedSSML } from '@/lib/ssmlBuilder';
 import { startListening, stopListening, fuzzyMatch } from '@/lib/speechRecognizer';
@@ -22,6 +23,8 @@ export default function SessionPage() {
     setPhase, setLoopIndex, setTranscript, setMatchScore,
     advanceStep, resetSession, markComplete,
   } = useSessionStore();
+
+  const { addVerse } = useLibraryStore();
 
   const {
     elevenLabsApiKey, voiceId, repeatCount, matchThreshold,
@@ -171,9 +174,16 @@ export default function SessionPage() {
     };
   }, []);
 
+  // Auto-save to library + mark complete when phase becomes 'complete'
   useEffect(() => {
-    if (phase === 'complete') markComplete();
-  }, [phase, markComplete]);
+    if (phase === 'complete') {
+      markComplete();
+      // Add to spaced repetition library — triggers 1-day review schedule
+      if (reference && fullVerseText) {
+        addVerse(reference, fullVerseText, (useSettingsStore.getState().translation) as 'BSB' | 'KJV');
+      }
+    }
+  }, [phase, markComplete, addVerse, reference, fullVerseText]);
 
   const handleStart = () => setPhase('reading');
   const handleRetry = () => { setPhase('reading'); };
@@ -293,6 +303,9 @@ export default function SessionPage() {
                 <button id="done-home-btn" className="complete-btn primary" onClick={handleRestart}>
                   Learn Another Verse
                 </button>
+                <Link href="/library" className="complete-btn" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', padding: '14px 28px', borderRadius: 'var(--radius-md)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  📚 View Library
+                </Link>
               </div>
             </div>
           </div>

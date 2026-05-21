@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSettingsStore } from '@/lib/store/settingsStore';
+import { useLibraryStore } from '@/lib/store/libraryStore';
 import {
   createReviewState, processTranscript, resetErrorWord,
   ReviewState, TrackedWord,
@@ -18,7 +20,9 @@ const QUICK_REFS = [
 ];
 
 export default function ReviewPage() {
+  const searchParams = useSearchParams();
   const { translation: defaultTranslation } = useSettingsStore();
+  const { recordReview } = useLibraryStore();
 
   // ─── Setup state ────────────────────────────────────────────────────────────
   const [ref, setRef] = useState('');
@@ -26,6 +30,7 @@ export default function ReviewPage() {
   const [verseText, setVerseText] = useState('');
   const [fetchLoading, setFetchLoading] = useState(false);
   const [fetchError, setFetchError] = useState('');
+  const [fromLibrary, setFromLibrary] = useState(false);
 
   // ─── Review state ────────────────────────────────────────────────────────────
   const [pageState, setPageState] = useState<PageState>('setup');
@@ -41,7 +46,19 @@ export default function ReviewPage() {
   useEffect(() => { reviewStateRef.current = reviewState; }, [reviewState]);
   useEffect(() => { pageStateRef.current = pageState; }, [pageState]);
 
-  // ─── Fetch verse ─────────────────────────────────────────────────────────────
+  // Auto-fetch if launched from library with ?ref=&translation= params
+  useEffect(() => {
+    const urlRef = searchParams.get('ref');
+    const urlTrans = searchParams.get('translation') as 'BSB' | 'KJV' | null;
+    if (urlRef) {
+      const t = urlTrans ?? defaultTranslation;
+      setRef(urlRef);
+      setTranslation(t);
+      setFromLibrary(true);
+      fetchVerse(urlRef, t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const fetchVerse = async (r: string, t: 'BSB' | 'KJV') => {
     setFetchLoading(true);
     setFetchError('');
@@ -96,6 +113,8 @@ export default function ReviewPage() {
             stopListening();
             break;
           } else if (event === 'complete') {
+            const accuracy = newState.correctCount / Math.max(newState.correctCount + newState.errorCount, 1);
+            recordReview(ref, accuracy);
             playCompletionFanfare();
             setPageState('complete');
             stopListening();
@@ -153,6 +172,8 @@ export default function ReviewPage() {
             stopListening();
             break;
           } else if (event === 'complete') {
+            const accuracy = newState.correctCount / Math.max(newState.correctCount + newState.errorCount, 1);
+            recordReview(ref, accuracy);
             playCompletionFanfare();
             setPageState('complete');
             stopListening();
@@ -397,6 +418,9 @@ export default function ReviewPage() {
               <button id="recite-again-btn" className="complete-btn primary" onClick={startReview}>
                 Recite Again
               </button>
+              <Link href="/library" className="complete-btn" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', padding: '14px 28px', borderRadius: 'var(--radius-md)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                📚 View Library
+              </Link>
               <button id="review-home-btn" className="complete-btn" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', padding: '14px 28px', borderRadius: 'var(--radius-md)' }} onClick={handleReset}>
                 New Verse
               </button>

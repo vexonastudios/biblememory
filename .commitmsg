@@ -1,11 +1,9 @@
-feat: Recite Mode + SSML pacing + audio caching
+feat: Spaced repetition verse library (/library)
 
-- lib/ssmlBuilder.ts: SSML with break tags for natural pacing between repeats
-- lib/beep.ts: Web Audio API beep/chime (error buzz, success chime, word tick)
-- lib/reviewTracker.ts: Word-by-word live review tracker with soft-match
-- app/review/page.tsx: Full Recite Mode page with live speech + error beeps
-- app/api/tts/route.ts: SHA-256 content cache + SSML support + CDN headers
-- app/session/page.tsx: Single TTS call with all repeats via SSML
-- lib/store/settingsStore.ts: Added pauseBetweenMs + readingSpeed settings
-- app/globals.css: Recite Mode styles (word coloring, status bar, score grid)
-- app/page.tsx: Recite Mode banner link
+- lib/srs.ts: SM-2 spaced repetition algorithm (1/3/7/14/30/60 day intervals)
+- lib/store/libraryStore.ts: Zustand persist store for verse library
+- app/library/page.tsx: Dashboard with due/upcoming/all tabs, SRS level dots, urgency colors, streak badges, remove modal
+- app/session/page.tsx: Auto-add verse to library on session complete
+- app/review/page.tsx: Record SRS score on recite complete, URL param pre-loading from library
+- app/page.tsx: Due-count badge + Library link in header
+- app/globals.css: Full library page styles
