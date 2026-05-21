@@ -228,6 +228,16 @@ export default function HomePage() {
             </button>
           </div>
         )}
+
+        {/* Review / Recite Mode banner */}
+        <Link href="/review" id="review-mode-link" className="review-mode-banner">
+          <span className="review-mode-icon">🎙</span>
+          <div className="review-mode-text">
+            <h3>Recite Mode</h3>
+            <p>Already know a verse? Speak it aloud — get instant word-by-word feedback with error beeps</p>
+          </div>
+          <span className="review-mode-arrow">›</span>
+        </Link>
       </main>
     </div>
   );
