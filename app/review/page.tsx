@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSettingsStore } from '@/lib/store/settingsStore';
@@ -19,7 +19,7 @@ const QUICK_REFS = [
   'Isaiah 40:31', 'Proverbs 3:5', 'Jeremiah 29:11', 'Ephesians 2:8',
 ];
 
-export default function ReviewPage() {
+function ReviewPageInner() {
   const searchParams = useSearchParams();
   const { translation: defaultTranslation } = useSettingsStore();
   const { recordReview } = useLibraryStore();
@@ -429,5 +429,17 @@ export default function ReviewPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ReviewPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'var(--text-muted)' }}>
+        Loading…
+      </div>
+    }>
+      <ReviewPageInner />
+    </Suspense>
   );
 }

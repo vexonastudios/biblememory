@@ -1,9 +1,1 @@
-feat: Spaced repetition verse library (/library)
-
-- lib/srs.ts: SM-2 spaced repetition algorithm (1/3/7/14/30/60 day intervals)
-- lib/store/libraryStore.ts: Zustand persist store for verse library
-- app/library/page.tsx: Dashboard with due/upcoming/all tabs, SRS level dots, urgency colors, streak badges, remove modal
-- app/session/page.tsx: Auto-add verse to library on session complete
-- app/review/page.tsx: Record SRS score on recite complete, URL param pre-loading from library
-- app/page.tsx: Due-count badge + Library link in header
-- app/globals.css: Full library page styles
+fix: Suspense boundary for useSearchParams on review page
