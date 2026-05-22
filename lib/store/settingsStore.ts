@@ -27,7 +27,8 @@ interface SettingsState {
   pauseBetweenMs: number;     // ms of silence between repetitions (500–3000)
   readingSpeed: number;       // TTS speed 0.7–1.2 (0.85 = deliberate)
   theme: 'light' | 'dark' | 'system';
-  hasSelectedVoice: boolean;   // Whether the user has chosen their initial voice
+  hasSelectedVoice: boolean;  // Whether the user has confirmed their initial voice
+  _hasHydrated: boolean;      // True once zustand/persist has reloaded from localStorage
   setElevenLabsApiKey: (key: string) => void;
   setVoiceId: (id: string) => void;
   setRepeatCount: (count: number) => void;
@@ -37,6 +38,7 @@ interface SettingsState {
   setReadingSpeed: (s: number) => void;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   setHasSelectedVoice: (selected: boolean) => void;
+  setHasHydrated: (v: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -51,6 +53,7 @@ export const useSettingsStore = create<SettingsState>()(
       readingSpeed: 0.85,               // Slightly slower than normal — deliberate
       theme: 'light',
       hasSelectedVoice: false,
+      _hasHydrated: false,
       setElevenLabsApiKey: (key) => set({ elevenLabsApiKey: key }),
       setVoiceId: (id) => set({ voiceId: id }),
       setRepeatCount: (count) => set({ repeatCount: count }),
@@ -60,7 +63,15 @@ export const useSettingsStore = create<SettingsState>()(
       setReadingSpeed: (s) => set({ readingSpeed: s }),
       setTheme: (theme) => set({ theme }),
       setHasSelectedVoice: (selected) => set({ hasSelectedVoice: selected }),
+      setHasHydrated: (v) => set({ _hasHydrated: v }),
     }),
-    { name: 'bible-memory-settings' }
+    {
+      name: 'bible-memory-settings',
+      // Called once localStorage has been read and state merged —
+      // flip the flag so the UI knows hydration is complete.
+      onRehydrateStorage: () => (state) => {
+        if (state) state.setHasHydrated(true);
+      },
+    }
   )
 );

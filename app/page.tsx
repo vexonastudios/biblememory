@@ -24,7 +24,8 @@ export default function HomePage() {
     translation: defaultTranslation, setTranslation,
     theme, setTheme,
     voiceId, setVoiceId,
-    hasSelectedVoice, setHasSelectedVoice
+    hasSelectedVoice, setHasSelectedVoice,
+    _hasHydrated,
   } = useSettingsStore();
   const addVerse = useLibraryStore((s) => s.addVerse);
   const dueCount = useLibraryStore((s) => s.dueCount());
@@ -248,8 +249,8 @@ export default function HomePage() {
       </header>
 
       <main className="home-main">
-        {/* How it works — only shown to first-time visitors alongside the voice modal */}
-        {!hasSelectedVoice && (
+        {/* How it works — only shown to first-time visitors, only after hydration */}
+        {_hasHydrated && !hasSelectedVoice && (
           <div className="how-it-works">
             <div className="how-step">
               <span className="how-num">1</span>
@@ -364,8 +365,8 @@ export default function HomePage() {
         </Link>
       </main>
 
-      {/* First-Time Voice Selection Modal */}
-      {!hasSelectedVoice && (
+      {/* First-Time Voice Selection Modal — only after hydration to prevent flash */}
+      {_hasHydrated && !hasSelectedVoice && (
         <div className="voice-modal-overlay" style={{
           position: 'fixed',
           top: 0,
