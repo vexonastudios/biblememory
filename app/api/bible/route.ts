@@ -1,31 +1,86 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getLocalBsbVerse } from '@/lib/bibleParser';
+import { getLocalBsbVerse, getLocalBsbRange, getLocalBsbChapter, LocalVerse } from '@/lib/bibleParser';
 
-const BIBLE_TRANSLATIONS: Record<string, string> = {
-  BSB: 'BSB',
-  KJV: 'KJV',
-};
+// ── Reference Parsing ─────────────────────────────────────────────────────────
 
-// Map book names to wldeh bible-api format
+type ParsedRef =
+  | { type: 'verse';   book: string; chapter: number; verse: number }
+  | { type: 'range';   book: string; chapter: number; startVerse: number; endVerse: number }
+  | { type: 'chapter'; book: string; chapter: number };
+
+/**
+ * Parses the following reference formats:
+ *   "John 3:16"        → single verse
+ *   "Romans 8:28-39"   → verse range within a chapter
+ *   "Psalm 23"         → entire chapter
+ */
+function parseReference(ref: string): ParsedRef | null {
+  const s = ref.trim();
+
+  // "Book Chapter:Start-End"  e.g. Romans 8:28-39
+  const rangeMatch = s.match(/^(.+?)\s+(\d+):(\d+)[–\-](\d+)$/);
+  if (rangeMatch) {
+    return {
+      type: 'range',
+      book: rangeMatch[1].trim(),
+      chapter: parseInt(rangeMatch[2]),
+      startVerse: parseInt(rangeMatch[3]),
+      endVerse: parseInt(rangeMatch[4]),
+    };
+  }
+
+  // "Book Chapter:Verse"  e.g. John 3:16
+  const singleMatch = s.match(/^(.+?)\s+(\d+):(\d+)$/);
+  if (singleMatch) {
+    return {
+      type: 'verse',
+      book: singleMatch[1].trim(),
+      chapter: parseInt(singleMatch[2]),
+      verse: parseInt(singleMatch[3]),
+    };
+  }
+
+  // "Book Chapter"  e.g. Psalm 23  (whole chapter)
+  const chapterMatch = s.match(/^(.+?)\s+(\d+)$/);
+  if (chapterMatch) {
+    return {
+      type: 'chapter',
+      book: chapterMatch[1].trim(),
+      chapter: parseInt(chapterMatch[2]),
+    };
+  }
+
+  return null;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Joins multiple LocalVerse objects into a single passage response. */
+function passageResponse(verses: LocalVerse[], translation: string) {
+  const first = verses[0];
+  const last  = verses[verses.length - 1];
+
+  const reference =
+    verses.length === 1
+      ? first.reference
+      : `${first.book} ${first.chapter}:${first.verse}–${last.verse}`;
+
+  const text = verses.map((v) => v.text).join(' ');
+
+  return NextResponse.json({ reference, text, translation, verseCount: verses.length });
+}
+
+/** Normalises a book name for the wldeh CDN key. */
 function normalizeBook(book: string): string {
   return book.toLowerCase().replace(/\s+/g, '');
 }
 
-// Parse reference like "John 3:16" or "1 Corinthians 13:4"
-function parseReference(ref: string): { book: string; chapter: number; verse: number } | null {
-  const match = ref.match(/^(.+?)\s+(\d+):(\d+)$/);
-  if (!match) return null;
-  return {
-    book: match[1].trim(),
-    chapter: parseInt(match[2]),
-    verse: parseInt(match[3]),
-  };
-}
+// ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const ref = searchParams.get('ref');
-  const translation = searchParams.get('translation') || 'BSB';
+  const ref         = searchParams.get('ref');
+  const translation = (searchParams.get('translation') || 'BSB').toUpperCase();
 
   if (!ref) {
     return NextResponse.json({ error: 'Missing ref parameter' }, { status: 400 });
@@ -33,100 +88,102 @@ export async function GET(request: NextRequest) {
 
   const parsed = parseReference(ref);
   if (!parsed) {
-    return NextResponse.json({ error: 'Invalid reference format. Use "Book Chapter:Verse" e.g. "John 3:16"' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Invalid reference. Try "John 3:16", "Romans 8:28-39", or "Psalm 23".' },
+      { status: 400 },
+    );
   }
 
-  const { book, chapter, verse } = parsed;
+  // ── BSB — served from local file ──────────────────────────────────────────
+  if (translation === 'BSB') {
+    let verses: LocalVerse[] | null = null;
 
-  // Handle local BSB verses
-  if (translation.toUpperCase() === 'BSB') {
-    const localVerse = getLocalBsbVerse(book, chapter, verse);
-    if (localVerse) {
-      return NextResponse.json({
-        reference: localVerse.reference,
-        text: localVerse.text,
-        translation: 'BSB',
-        book: localVerse.book,
-        chapter: localVerse.chapter,
-        verse: localVerse.verse,
-      });
+    if (parsed.type === 'verse') {
+      const v = getLocalBsbVerse(parsed.book, parsed.chapter, parsed.verse);
+      if (v) verses = [v];
+    } else if (parsed.type === 'range') {
+      verses = getLocalBsbRange(parsed.book, parsed.chapter, parsed.startVerse, parsed.endVerse);
     } else {
-      return NextResponse.json({ error: `Verse not found: ${book} ${chapter}:${verse}` }, { status: 404 });
+      verses = getLocalBsbChapter(parsed.book, parsed.chapter);
     }
+
+    if (!verses || verses.length === 0) {
+      const hint =
+        parsed.type === 'chapter'
+          ? `Chapter not found: ${parsed.book} ${parsed.chapter}`
+          : `Verse not found: ${ref}`;
+      return NextResponse.json({ error: hint }, { status: 404 });
+    }
+
+    return passageResponse(verses, 'BSB');
   }
 
-  const bookKey = normalizeBook(book);
-  const transKey = translation.toUpperCase() === 'KJV' ? 'en-kjv' : 'en-bsb';
-
-  // Try wldeh CDN API (no key needed, public domain)
-  const url = `https://cdn.jsdelivr.net/gh/wldeh/bible-api/bibles/${transKey}/books/${bookKey}/chapters/${chapter}/verses/${verse}.json`;
-
-  try {
-    const res = await fetch(url, { next: { revalidate: 86400 } }); // cache 24h
-    if (!res.ok) {
-      // Try HelloAO fallback
-      return await fetchHelloAO(book, chapter, verse, translation);
-    }
-
-    const data = await res.json();
-    const text: string = data.text || data.verse || '';
-
-    if (!text) {
-      return await fetchHelloAO(book, chapter, verse, translation);
-    }
-
-    return NextResponse.json({
-      reference: ref,
-      text: text.trim(),
-      translation: translation.toUpperCase(),
-      book,
-      chapter,
-      verse,
-    });
-  } catch (e) {
-    return await fetchHelloAO(book, chapter, verse, translation);
-  }
+  // ── KJV — fetched from external API ───────────────────────────────────────
+  return await fetchKjv(parsed, ref);
 }
 
-async function fetchHelloAO(book: string, chapter: number, verse: number, translation: string) {
-  // HelloAO API format
-  const transCode = translation.toUpperCase() === 'KJV' ? 'KJV' : 'BSB';
-  const url = `https://api.helloao.org/api/${transCode}/${bookAbbrev(book)}/${chapter}`;
+// ── KJV fetching ──────────────────────────────────────────────────────────────
+
+async function fetchKjv(parsed: ParsedRef, originalRef: string): Promise<NextResponse> {
+  const { book, chapter } = parsed;
+  const bookAbbr = bookAbbrev(book);
+  const url = `https://api.helloao.org/api/KJV/${bookAbbr}/${chapter}`;
 
   try {
     const res = await fetch(url, { next: { revalidate: 86400 } });
     if (!res.ok) {
-      return NextResponse.json({ error: `Could not fetch verse: ${book} ${chapter}:${verse}` }, { status: 502 });
+      return NextResponse.json({ error: `Could not fetch: ${originalRef}` }, { status: 502 });
     }
+
     const data = await res.json();
-    // HelloAO returns { chapter: { verses: [...] } }
-    const verses = data?.chapter?.verses || data?.verses || [];
-    const found = verses.find((v: any) => v.number === verse || v.verseNumber === verse);
-    if (!found) {
-      return NextResponse.json({ error: `Verse ${verse} not found in ${book} ${chapter}` }, { status: 404 });
+    const allVerses: { number: number; verseNumber?: number; text?: string; content?: string }[] =
+      data?.chapter?.verses || data?.verses || [];
+
+    if (allVerses.length === 0) {
+      return NextResponse.json({ error: `No verses returned for ${originalRef}` }, { status: 404 });
     }
-    const text = found.text || found.content || '';
-    return NextResponse.json({
-      reference: `${book} ${chapter}:${verse}`,
-      text: text.trim(),
-      translation: transCode,
+
+    // Filter to requested range
+    let filtered = allVerses;
+    if (parsed.type === 'verse') {
+      filtered = allVerses.filter((v) => v.number === parsed.verse || v.verseNumber === parsed.verse);
+    } else if (parsed.type === 'range') {
+      filtered = allVerses.filter((v) => {
+        const n = v.number ?? v.verseNumber ?? 0;
+        return n >= parsed.startVerse && n <= parsed.endVerse;
+      });
+    }
+    // type === 'chapter' keeps all verses
+
+    if (filtered.length === 0) {
+      return NextResponse.json({ error: `Verses not found in ${book} ${chapter}` }, { status: 404 });
+    }
+
+    // Build LocalVerse-like objects for passageResponse
+    const localVerses: LocalVerse[] = filtered.map((v) => ({
+      reference: `${book} ${chapter}:${v.number ?? v.verseNumber}`,
+      text: (v.text || v.content || '').trim(),
       book,
       chapter,
-      verse,
-    });
-  } catch (e) {
-    return NextResponse.json({ error: 'Failed to fetch from both Bible APIs' }, { status: 502 });
+      verse: v.number ?? v.verseNumber ?? 0,
+    }));
+
+    return passageResponse(localVerses, 'KJV');
+  } catch {
+    return NextResponse.json({ error: 'Failed to fetch from KJV API' }, { status: 502 });
   }
 }
 
+// ── Book abbreviation map (for HelloAO KJV API) ───────────────────────────────
+
 function bookAbbrev(book: string): string {
-  const abbrevMap: Record<string, string> = {
+  const map: Record<string, string> = {
     genesis: 'GEN', exodus: 'EXO', leviticus: 'LEV', numbers: 'NUM', deuteronomy: 'DEU',
     joshua: 'JOS', judges: 'JDG', ruth: 'RUT',
     '1samuel': '1SA', '2samuel': '2SA', '1kings': '1KI', '2kings': '2KI',
     '1chronicles': '1CH', '2chronicles': '2CH', ezra: 'EZR', nehemiah: 'NEH',
     esther: 'EST', job: 'JOB', psalms: 'PSA', psalm: 'PSA',
-    proverbs: 'PRO', ecclesiastes: 'ECC', 'songofsolomon': 'SNG',
+    proverbs: 'PRO', ecclesiastes: 'ECC', songofsolomon: 'SNG',
     isaiah: 'ISA', jeremiah: 'JER', lamentations: 'LAM', ezekiel: 'EZK',
     daniel: 'DAN', hosea: 'HOS', joel: 'JOL', amos: 'AMO', obadiah: 'OBA',
     jonah: 'JON', micah: 'MIC', nahum: 'NAH', habakkuk: 'HAB',
@@ -139,6 +196,6 @@ function bookAbbrev(book: string): string {
     '1peter': '1PE', '2peter': '2PE', '1john': '1JN', '2john': '2JN', '3john': '3JN',
     jude: 'JUD', revelation: 'REV',
   };
-  const key = book.toLowerCase().replace(/\s+/g, '');
-  return abbrevMap[key] || book.toUpperCase().slice(0, 3);
+  const key = normalizeBook(book);
+  return map[key] || book.toUpperCase().slice(0, 3);
 }

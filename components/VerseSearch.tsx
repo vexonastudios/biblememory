@@ -11,18 +11,27 @@ interface Props {
 }
 
 const QUICK_REFS = [
-  'John 3:16',
-  'Philippians 4:13',
-  'Romans 8:28',
-  'Jeremiah 29:11',
-  'Psalm 23:1',
-  'Isaiah 40:31',
-  'Proverbs 3:5',
-  'Ephesians 2:8',
+  // Single verses
+  { label: 'John 3:16',        ref: 'John 3:16' },
+  { label: 'Romans 8:28',      ref: 'Romans 8:28' },
+  { label: 'Phil 4:13',        ref: 'Philippians 4:13' },
+  // Passages / ranges
+  { label: 'Psalm 23',         ref: 'Psalm 23' },
+  { label: 'Romans 8:28–39',   ref: 'Romans 8:28-39' },
+  { label: 'John 3:16–21',     ref: 'John 3:16-21' },
+  { label: '1 Cor 13',         ref: '1 Corinthians 13' },
+  { label: 'Eph 6:10–18',      ref: 'Ephesians 6:10-18' },
+];
+
+const FORMAT_EXAMPLES = [
+  { format: 'John 3:16',       hint: 'Single verse' },
+  { format: 'Romans 8:28–39', hint: 'Verse range' },
+  { format: 'Psalm 23',        hint: 'Whole chapter' },
 ];
 
 export default function VerseSearch({ onFetch, loading, error, translation, onTranslationChange }: Props) {
   const [ref, setRef] = useState('');
+  const [showFormats, setShowFormats] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,8 +45,33 @@ export default function VerseSearch({ onFetch, loading, error, translation, onTr
 
   return (
     <div className="verse-search">
-      <h2 className="search-title">Find Your Verse</h2>
-      <p className="search-subtitle">Type a reference like <em>John 3:16</em> or <em>Psalm 23:1</em></p>
+      <h2 className="search-title">Find a Verse or Passage</h2>
+      <p className="search-subtitle">
+        Enter a verse, range, or whole chapter —{' '}
+        <button
+          className="format-hint-toggle"
+          type="button"
+          onClick={() => setShowFormats((v) => !v)}
+        >
+          see formats
+        </button>
+      </p>
+
+      {showFormats && (
+        <div className="format-examples">
+          {FORMAT_EXAMPLES.map(({ format, hint }) => (
+            <button
+              key={format}
+              className="format-chip"
+              type="button"
+              onClick={() => { setRef(format); setShowFormats(false); }}
+            >
+              <span className="format-chip-ref">{format}</span>
+              <span className="format-chip-hint">{hint}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="search-form">
         <div className="search-row">
@@ -47,7 +81,7 @@ export default function VerseSearch({ onFetch, loading, error, translation, onTr
             type="text"
             value={ref}
             onChange={(e) => setRef(e.target.value)}
-            placeholder="e.g. Romans 8:28"
+            placeholder="e.g. John 3:16 · Romans 8:28-39 · Psalm 23"
             autoComplete="off"
           />
           <select
@@ -80,14 +114,14 @@ export default function VerseSearch({ onFetch, loading, error, translation, onTr
 
       <div className="quick-refs">
         <span className="quick-label">Quick pick:</span>
-        {QUICK_REFS.map((r) => (
+        {QUICK_REFS.map(({ label, ref: r }) => (
           <button
             key={r}
-            id={`quick-${r.replace(/\s+/g, '-').replace(':', '-')}`}
+            id={`quick-${r.replace(/[\s:–\-]+/g, '-')}`}
             className="quick-chip"
             onClick={() => handleQuick(r)}
           >
-            {r}
+            {label}
           </button>
         ))}
       </div>

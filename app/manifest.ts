@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'Inscribed',
     short_name: 'Inscribed',
     description:
-      'Memorize Bible verses using the Builder Method — phrase-by-phrase audio repetition with voice recall. Hands-free, perfect for driving.',
+      'Inscribed helps you hide God’s Word in your heart through phrase-by-phrase audio repetition and spaced repetition review. Hands-free, perfect for driving.',
     start_url: '/',
     display: 'standalone',
     background_color: '#ffffff',

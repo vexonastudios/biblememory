@@ -1,14 +1,18 @@
 /**
- * Scripture Builder Service Worker
+ * Inscribed — Service Worker
  * Caches the app shell for offline use + CDN-cached TTS audio.
  *
+ * ⚠️  CACHE_NAME is auto-stamped with a build timestamp by scripts/stamp-sw.cjs
+ *    (runs as "prebuild" hook). Every deployment gets a unique cache name,
+ *    which causes the activate handler to wipe all old caches automatically.
+ *
  * Strategy:
- *  - App shell (HTML/CSS/JS): Cache-first with network fallback
+ *  - App shell (HTML/CSS/JS): Stale-while-revalidate
  *  - Bible API: Network-first with cache fallback (verses can change)
  *  - TTS API: Cache-first (audio is content-addressed, never stale)
  */
 
-const CACHE_NAME = 'scripture-builder-v1';
+const CACHE_NAME = 'inscribed-BUILD_TS';
 const OFFLINE_URL = '/';
 
 // App shell — static assets to pre-cache on install
@@ -19,6 +23,7 @@ const PRECACHE_URLS = [
   '/session',
   '/settings',
   '/manifest.webmanifest',
+  '/logo.png',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/apple-touch-icon.png',

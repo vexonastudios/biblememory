@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Inscribed — Bible Memory App
+
+A PWA for hiding God's Word in your heart.  
+Phrase-by-phrase audio repetition + spaced repetition review, powered by ElevenLabs TTS.
+
+## Features
+
+- 📖 **Verse memorization** — search any Bible verse (BSB or KJV) and start a hands-free audio session
+- 🔊 **Phrase-by-phrase playback** — verses broken into natural chunks, repeated and accumulated
+- 🎙 **Voice recall** — speak the verse aloud; the app scores your accuracy
+- 🗂 **Verse library** — saved verses are automatically scheduled for spaced repetition review
+- 🌙 **Light/dark/system theme** — flash-free theme switching
+- 📱 **Installable PWA** — works offline, add to Home Screen on iOS and Android
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # starts on :3002
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable | Required | Description |
+|---|---|---|
+| `ELEVENLABS_API_KEY` | Optional | Server-side TTS key. If set, users don't need to enter their own. |
+| `NEXT_PUBLIC_SITE_URL` | Optional | Production URL (e.g. `https://inscribed.app`). Used for SEO metadata and sitemap. |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Translations
 
-## Learn More
+- **BSB** (Berean Standard Bible) — bundled locally at `lib/data/bsb.txt`. No API call needed.
+- **KJV** — fetched from an external API at request time.
 
-To learn more about Next.js, take a look at the following resources:
+## Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- [Next.js 16](https://nextjs.org/) (App Router, Turbopack)
+- [Zustand](https://zustand-demo.pmnd.rs/) — client state (verses, sessions, settings)
+- [ElevenLabs](https://elevenlabs.io/) — neural TTS
+- Vanilla CSS — no UI framework
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deploy to [Vercel](https://vercel.com). Set `ELEVENLABS_API_KEY` as a server-side environment variable in the Vercel dashboard.

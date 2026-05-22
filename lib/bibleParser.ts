@@ -152,27 +152,68 @@ export function getCanonicalBook(bookName: string): string | null {
 }
 
 /**
- * Fetches a verse from the local BSB text file.
+ * Fetches a single verse from the local BSB text file.
  */
 export function getLocalBsbVerse(book: string, chapter: number, verse: number): LocalVerse | null {
   const canonicalBook = getCanonicalBook(book);
-  if (!canonicalBook) {
-    return null;
-  }
+  if (!canonicalBook) return null;
 
   const bsbMap = getBsbMap();
   const lookupKey = `${canonicalBook.toLowerCase()} ${chapter}:${verse}`;
   const text = bsbMap.get(lookupKey);
+  if (!text) return null;
 
-  if (!text) {
-    return null;
+  return { reference: `${canonicalBook} ${chapter}:${verse}`, text, book: canonicalBook, chapter, verse };
+}
+
+/**
+ * Fetches a range of verses from the local BSB text file.
+ * Returns all found verses between startVerse and endVerse (inclusive).
+ */
+export function getLocalBsbRange(
+  book: string,
+  chapter: number,
+  startVerse: number,
+  endVerse: number,
+): LocalVerse[] | null {
+  const canonicalBook = getCanonicalBook(book);
+  if (!canonicalBook) return null;
+
+  const bsbMap = getBsbMap();
+  const verses: LocalVerse[] = [];
+
+  for (let v = startVerse; v <= endVerse; v++) {
+    const key = `${canonicalBook.toLowerCase()} ${chapter}:${v}`;
+    const text = bsbMap.get(key);
+    if (text) {
+      verses.push({ reference: `${canonicalBook} ${chapter}:${v}`, text, book: canonicalBook, chapter, verse: v });
+    }
   }
 
-  return {
-    reference: `${canonicalBook} ${chapter}:${verse}`,
-    text,
-    book: canonicalBook,
-    chapter,
-    verse
-  };
+  return verses.length > 0 ? verses : null;
+}
+
+/**
+ * Fetches all verses of a chapter from the local BSB text file.
+ * Scans verse numbers 1–200 and stops at the first miss after finding content.
+ */
+export function getLocalBsbChapter(book: string, chapter: number): LocalVerse[] | null {
+  const canonicalBook = getCanonicalBook(book);
+  if (!canonicalBook) return null;
+
+  const bsbMap = getBsbMap();
+  const verses: LocalVerse[] = [];
+
+  for (let v = 1; v <= 200; v++) {
+    const key = `${canonicalBook.toLowerCase()} ${chapter}:${v}`;
+    const text = bsbMap.get(key);
+    if (text) {
+      verses.push({ reference: `${canonicalBook} ${chapter}:${v}`, text, book: canonicalBook, chapter, verse: v });
+    } else if (verses.length > 0) {
+      // Hit a gap after finding verses — chapter is complete
+      break;
+    }
+  }
+
+  return verses.length > 0 ? verses : null;
 }

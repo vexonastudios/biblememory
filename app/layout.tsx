@@ -13,10 +13,29 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Inscribed — Bible Memory App',
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3002')
+  ),
+
+  title: {
+    default: 'Inscribed — Bible Memory App',
+    template: '%s | Inscribed',
+  },
   description:
-    'Memorize Bible verses using the Builder Method: phrase-by-phrase audio repetition with voice recall. ElevenLabs powered, hands-free design perfect for driving.',
-  keywords: ['Bible memorization', 'Scripture memory', 'builder method', 'audio Bible'],
+    'Inscribed helps you hide God\u2019s Word in your heart using phrase-by-phrase audio repetition and spaced repetition review. Hands-free, perfect for driving or daily routine.',
+  keywords: [
+    'Bible memorization', 'Bible memory app', 'Scripture memorization',
+    'hide scripture in your heart', 'spaced repetition Bible', 'audio Bible memory',
+    'verse memorization', 'Christian app', 'Berean Standard Bible', 'KJV memory',
+  ],
+  authors: [{ name: 'Inscribed' }],
+  creator: 'Inscribed',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
 
   // PWA / installability
   manifest: '/manifest.webmanifest',
@@ -35,9 +54,19 @@ export const metadata: Metadata = {
   // Open Graph
   openGraph: {
     title: 'Inscribed — Bible Memory App',
-    description: 'Memorize Bible verses with audio repetition and spaced review.',
+    description: 'Inscribed helps you hide God\u2019s Word in your heart using phrase-by-phrase audio repetition and spaced repetition review.',
     type: 'website',
     locale: 'en_US',
+    siteName: 'Inscribed',
+    images: [{ url: '/icons/icon-512.png', width: 512, height: 512, alt: 'Inscribed — Bible Memory App' }],
+  },
+
+  // Twitter / X card
+  twitter: {
+    card: 'summary',
+    title: 'Inscribed — Bible Memory App',
+    description: 'Hide God\u2019s Word in your heart with phrase-by-phrase audio repetition and spaced review.',
+    images: ['/icons/icon-512.png'],
   },
 
   // Icons
@@ -68,7 +97,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Scripture" />
+        <meta name="apple-mobile-web-app-title" content="Inscribed" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         {/* Prevent blue highlight on tap on mobile */}
         <style>{`* { -webkit-tap-highlight-color: transparent; }`}</style>

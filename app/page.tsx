@@ -14,6 +14,7 @@ interface FetchedVerse {
   text: string;
   translation: string;
   phrases: Phrase[];
+  verseCount?: number;
 }
 
 export default function HomePage() {
@@ -56,6 +57,7 @@ export default function HomePage() {
         text: data.text,
         translation: data.translation,
         phrases,
+        verseCount: data.verseCount,
       };
       setFetched(v);
       setEditedPhrases(phrases);
@@ -172,7 +174,7 @@ export default function HomePage() {
         <div className="how-it-works">
           <div className="how-step">
             <span className="how-num">1</span>
-            <span className="how-txt">Choose a verse</span>
+            <span className="how-txt">Choose a verse or passage</span>
           </div>
           <div className="how-arrow">→</div>
           <div className="how-step">
@@ -206,6 +208,9 @@ export default function HomePage() {
             <div className="verse-ref-tag">
               <span className="ref-text">{fetched.reference}</span>
               <span className="trans-badge">{fetched.translation}</span>
+              {fetched.verseCount && fetched.verseCount > 1 && (
+                <span className="verse-count-badge">{fetched.verseCount} verses</span>
+              )}
             </div>
 
             <blockquote className="verse-full-text">
