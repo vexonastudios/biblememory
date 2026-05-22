@@ -99,6 +99,76 @@ function ReviewPageInner() {
     }
   };
 
+  // ─── Shared listener options builder ────────────────────────────────────────
+  // Both startReview and resumeAfterError use identical onResult/onEnd logic.
+  // Extracting it here fixes the bug where the auto-restart after silence
+  // would spawn a new session with empty callbacks, causing recite to freeze.
+  const buildListenerOptions = useCallback(() => ({
+    onResult: ({ transcript }: { transcript: string; isFinal: boolean; confidence: number }) => {
+      setLiveTranscript(transcript);
+
+      const currentState = reviewStateRef.current;
+      if (!currentState || pageStateRef.current !== 'listening') return;
+
+      const { state: newState, processedCount, events } = processTranscript(
+        currentState,
+        transcript,
+        processedCountRef.current
+      );
+
+      processedCountRef.current = processedCount;
+      setReviewState(newState);
+
+      for (const event of events) {
+        if (event === 'correct') {
+          playWordTick();
+        } else if (event === 'error') {
+          playErrorBeep();
+          setErrorWord(newState.errorWord);
+          setPageState('error');
+          stopListening();
+          if (newState.errorWord) {
+            const normalized = newState.errorWord.toLowerCase().replace(/[^a-z0-9']/g, '').trim();
+            if (normalized) recordWordError(ref, normalized);
+          }
+          break;
+        } else if (event === 'complete') {
+          const accuracy = newState.correctCount / Math.max(newState.correctCount + newState.errorCount, 1);
+          recordReview(ref, accuracy);
+          playCompletionFanfare();
+          setPageState('complete');
+          stopListening();
+          break;
+        }
+      }
+    },
+    onEnd: () => {
+      // Speech recognition ended naturally (browser silence timeout).
+      // If we're still supposed to be listening, restart automatically.
+      if (pageStateRef.current === 'listening') {
+        setTimeout(() => {
+          if (pageStateRef.current === 'listening') {
+            // Re-use this same builder so the restarted session has full callbacks
+            startListening(buildListenerOptions());
+          }
+        }, 300);
+      }
+    },
+    onError: (err: string) => {
+      // Ignore 'no-speech' — it's normal and the onEnd handler will restart.
+      if (err === 'no-speech') return;
+      // For other errors, stop gracefully so the UI doesn't get stuck
+      if (pageStateRef.current === 'listening') {
+        setTimeout(() => {
+          if (pageStateRef.current === 'listening') {
+            startListening(buildListenerOptions());
+          }
+        }, 500);
+      }
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [ref]);
+
   // ─── Start review session ─────────────────────────────────────────────────────
   const startReview = useCallback(() => {
     if (!verseText) return;
@@ -108,66 +178,8 @@ function ReviewPageInner() {
     setLiveTranscript('');
     setErrorWord(null);
     setPageState('listening');
-
-    startListening({
-      onResult: ({ transcript }) => {
-        setLiveTranscript(transcript);
-
-        const currentState = reviewStateRef.current;
-        if (!currentState || pageStateRef.current !== 'listening') return;
-
-        const { state: newState, processedCount, events } = processTranscript(
-          currentState,
-          transcript,
-          processedCountRef.current
-        );
-
-        processedCountRef.current = processedCount;
-        setReviewState(newState);
-
-        // Handle events
-        for (const event of events) {
-          if (event === 'correct') {
-            playWordTick();
-          } else if (event === 'error') {
-            playErrorBeep();
-            setErrorWord(newState.errorWord);
-            setPageState('error');
-            stopListening();
-            // Record this word's error in the persistent library history
-            if (newState.errorWord) {
-              const normalized = newState.errorWord.toLowerCase().replace(/[^a-z0-9']/g, '').trim();
-              if (normalized) recordWordError(ref, normalized);
-            }
-            break;
-          } else if (event === 'complete') {
-            const accuracy = newState.correctCount / Math.max(newState.correctCount + newState.errorCount, 1);
-            recordReview(ref, accuracy);
-            playCompletionFanfare();
-            setPageState('complete');
-            stopListening();
-            break;
-          }
-        }
-      },
-      onEnd: () => {
-        // Speech recognition closed naturally — restart if still in listening mode
-        if (pageStateRef.current === 'listening') {
-          // Auto-restart listening (speech recognition times out after silence)
-          setTimeout(() => {
-            if (pageStateRef.current === 'listening') {
-              startListening({
-                onResult: () => {},
-                onEnd: () => {},
-                onError: () => {},
-              });
-            }
-          }, 200);
-        }
-      },
-      onError: () => {},
-    });
-  }, [verseText]);
+    startListening(buildListenerOptions());
+  }, [verseText, buildListenerOptions]);
 
   // ─── Resume after error ────────────────────────────────────────────────────
   const resumeAfterError = useCallback(() => {
@@ -175,49 +187,11 @@ function ReviewPageInner() {
     const fixed = resetErrorWord(reviewState);
     setReviewState(fixed);
     setErrorWord(null);
-    processedCountRef.current = 0; // Reset transcript counter — new recognition session
+    processedCountRef.current = 0;
     setLiveTranscript('');
     setPageState('listening');
-    startListening({
-      onResult: ({ transcript }) => {
-        setLiveTranscript(transcript);
-        const currentState = reviewStateRef.current;
-        if (!currentState || pageStateRef.current !== 'listening') return;
-
-        const { state: newState, processedCount, events } = processTranscript(
-          currentState, transcript, processedCountRef.current
-        );
-        processedCountRef.current = processedCount;
-        setReviewState(newState);
-
-        for (const event of events) {
-          if (event === 'correct') {
-            playWordTick();
-          } else if (event === 'error') {
-            playErrorBeep();
-            setErrorWord(newState.errorWord);
-            setPageState('error');
-            stopListening();
-            // Record this word's error in the persistent library history
-            if (newState.errorWord) {
-              const normalized = newState.errorWord.toLowerCase().replace(/[^a-z0-9']/g, '').trim();
-              if (normalized) recordWordError(ref, normalized);
-            }
-            break;
-          } else if (event === 'complete') {
-            const accuracy = newState.correctCount / Math.max(newState.correctCount + newState.errorCount, 1);
-            recordReview(ref, accuracy);
-            playCompletionFanfare();
-            setPageState('complete');
-            stopListening();
-            break;
-          }
-        }
-      },
-      onEnd: () => {},
-      onError: () => {},
-    });
-  }, [reviewState]);
+    startListening(buildListenerOptions());
+  }, [reviewState, buildListenerOptions]);
 
   const handleReset = () => {
     stopListening();
@@ -451,8 +425,8 @@ function ReviewPageInner() {
             </div>
           )}
 
-          {/* Controls */}
-          <div className="review-controls">
+          {/* Controls — pinned to bottom of screen */}
+          <div className="review-controls-bar">
             {pageState === 'error' && (
               <button id="resume-btn" className="ctrl-btn retry" onClick={resumeAfterError}>
                 ▶ Continue

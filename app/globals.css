@@ -1044,6 +1044,14 @@ input, select, textarea { font-family: inherit; }
 
 .ctrl-btn.skip:hover { color: var(--text-primary); background: var(--bg-card-hover); }
 
+/* Inside the pinned bar, buttons stretch to fill available width */
+.review-controls-bar .ctrl-btn {
+  flex: 1;
+  max-width: 220px;
+  padding: 13px 24px;
+  font-size: 15px;
+}
+
 /* ── Complete screen ─────────────────────────────────────────────── */
 .complete-screen {
   max-width: 560px;
@@ -1610,7 +1618,8 @@ input, select, textarea { font-family: inherit; }
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 0 0 32px;
+  /* Extra bottom padding so content is never hidden behind the pinned controls bar */
+  padding: 0 0 96px;
 }
 
 /* Status bar */
@@ -1788,7 +1797,25 @@ input, select, textarea { font-family: inherit; }
 .dot-mid  { background: rgba(249, 115, 22, 0.80); }
 .dot-high { background: rgba(239, 68, 68, 0.90); }
 
-/* Review controls */
+/* Review controls — pinned to bottom of viewport */
+.review-controls-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  padding: 12px 20px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  background: var(--bg-mid);
+  border-top: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Keep the old .review-controls for any leftover usages */
 .review-controls {
   display: flex;
   gap: 12px;
