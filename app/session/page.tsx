@@ -178,8 +178,25 @@ export default function SessionPage() {
 
   const handleStart = () => setPhase('reading');
   const handleRetry = () => { setPhase('listening'); openMic(accumulated[currentStep]); };
-  const handleRestart = () => { stopListening(); resetSession(); router.replace('/'); };
+  const handleRestart = () => {
+    // Cancel any in-progress loop immediately
+    loopTokenRef.current += 1;
+    // Stop audio
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    stopListening();
+    resetSession();
+    router.replace('/');
+  };
   const handleSkip = () => { stopListening(); setFailCount(0); advanceStep(); };
+
+  // Unmount cleanup — fires when user navigates away for any reason
+  useEffect(() => {
+    return () => {
+      loopTokenRef.current += 1;  // cancel any in-progress loop
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      stopListening();
+    };
+  }, []);
 
   if (!phrases.length) return null;
 
