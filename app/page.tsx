@@ -29,17 +29,14 @@ export default function HomePage() {
   const dueCount = useLibraryStore((s) => s.dueCount());
 
   // Voice selection states for first-time modal
+  // Initialize directly from voiceId — the store always has a default (Finley),
+  // so the Confirm button is never stuck in a disabled state.
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
-  const [selectedModalVoice, setSelectedModalVoice] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Set default selected voice in modal to current voice if preset
-    if (voiceId) {
-      setSelectedModalVoice(voiceId);
-    }
-  }, [voiceId]);
+  const [selectedModalVoice, setSelectedModalVoice] = useState<string>(
+    voiceId || PRESET_VOICES[0].voice_id
+  );
 
   useEffect(() => {
     return () => {
@@ -88,12 +85,10 @@ export default function HomePage() {
   };
 
   const handleSaveModalVoice = () => {
-    if (selectedModalVoice) {
-      setVoiceId(selectedModalVoice);
-      setHasSelectedVoice(true);
-      if (audioElement) {
-        audioElement.pause();
-      }
+    setVoiceId(selectedModalVoice);
+    setHasSelectedVoice(true);
+    if (audioElement) {
+      audioElement.pause();
     }
   };
 
@@ -492,18 +487,17 @@ export default function HomePage() {
 
             <button
               onClick={handleSaveModalVoice}
-              disabled={!selectedModalVoice}
               style={{
                 width: '100%',
                 padding: '14px',
                 borderRadius: 'var(--radius-md)',
-                background: selectedModalVoice ? 'var(--gold)' : 'var(--text-muted)',
+                background: 'var(--gold)',
                 color: '#fff',
                 fontWeight: 700,
                 fontSize: '0.95rem',
-                cursor: selectedModalVoice ? 'pointer' : 'not-allowed',
+                cursor: 'pointer',
                 border: 'none',
-                boxShadow: selectedModalVoice ? '0 4px 12px rgba(var(--gold-rgb), 0.3)' : 'none',
+                boxShadow: '0 4px 12px rgba(var(--gold-rgb), 0.3)',
                 transition: 'all 0.2s ease',
                 textAlign: 'center'
               }}
