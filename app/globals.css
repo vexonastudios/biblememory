@@ -134,6 +134,24 @@ input, select, textarea { font-family: inherit; }
   flex-shrink: 0;
 }
 
+.logo-icon-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  object-fit: contain;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(var(--gold-rgb), 0.15);
+  background: #ffffff;
+  padding: 5px;
+  border: 1px solid var(--border);
+  transition: var(--transition);
+}
+
+.logo-wrap:hover .logo-icon-img {
+  transform: scale(1.06) rotate(3deg);
+  box-shadow: 0 6px 24px rgba(var(--gold-rgb), 0.25);
+}
+
 .logo-title {
   font-size: 20px;
   font-weight: 700;

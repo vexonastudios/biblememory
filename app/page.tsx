@@ -116,7 +116,7 @@ export default function HomePage() {
       {/* Header */}
       <header className="home-header">
         <div className="logo-wrap">
-          <div className="logo-icon">✦</div>
+          <img src="/logo.png" alt="Inscribed Logo" className="logo-icon-img" />
           <div>
             <h1 className="logo-title">Inscribed</h1>
             <p className="logo-sub">Write God's Word on the tablet of your heart</p>
