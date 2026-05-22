@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSettingsStore } from '@/lib/store/settingsStore';
 import { useLibraryStore } from '@/lib/store/libraryStore';
+import { useSessionStore } from '@/lib/store/sessionStore';
 import {
   createReviewState, processTranscript, resetErrorWord,
   ReviewState, TrackedWord,
@@ -12,9 +13,11 @@ import {
 import { playErrorBeep, playWordTick, playCompletionFanfare } from '@/lib/beep';
 import { startListening, stopListening } from '@/lib/speechRecognizer';
 import BookAutocompleteInput from '@/components/BookAutocompleteInput';
+import { parseVerseIntoPhrases } from '@/lib/phraseParser';
 
 type PageState = 'setup' | 'hint-choice' | 'listening' | 'error' | 'complete';
 type HintsMode = 'on' | 'off';
+type PracticeMode = 'full' | 'parts';
 
 const QUICK_REFS = [
   'John 3:16', 'Psalm 23:1', 'Romans 8:28', 'Philippians 4:13',
@@ -25,6 +28,8 @@ function ReviewPageInner() {
   const searchParams = useSearchParams();
   const { translation: defaultTranslation } = useSettingsStore();
   const { recordReview, recordWordError, getWordErrors } = useLibraryStore();
+  const { setVerse } = useSessionStore();
+  const router = useRouter();
 
   // ─── Setup state ────────────────────────────────────────────────────────────
   const [ref, setRef] = useState('');
@@ -40,6 +45,8 @@ function ReviewPageInner() {
   const [liveTranscript, setLiveTranscript] = useState('');
   const [errorWord, setErrorWord] = useState<string | null>(null);
   const [hintsMode, setHintsMode] = useState<HintsMode>('off');
+  const [practiceMode, setPracticeMode] = useState<PracticeMode>('full');
+  const [verseCollapsed, setVerseCollapsed] = useState(false);
 
   // Track how many transcript words we've already processed
   const processedCountRef = useRef(0);
@@ -207,6 +214,13 @@ function ReviewPageInner() {
     startReview();
   };
 
+  const handleStartInParts = () => {
+    if (!verseText) return;
+    const phrases = parseVerseIntoPhrases(verseText);
+    setVerse(ref, verseText, phrases, translation);
+    router.push('/session');
+  };
+
   // Cleanup on unmount
   useEffect(() => () => stopListening(), []);
 
@@ -214,6 +228,8 @@ function ReviewPageInner() {
   const correctCount = reviewState?.correctCount ?? 0;
   const totalWords = reviewState?.words.length ?? 0;
   const progressPercent = totalWords > 0 ? (correctCount / totalWords) * 100 : 0;
+
+
 
   return (
     <div className="review-page">
@@ -310,39 +326,99 @@ function ReviewPageInner() {
         </div>
       )}
 
-      {/* Hint choice — shown before reciting, whether from library or manual search */}
+      {/* Practice options — shown before reciting, whether from library or manual search */}
       {pageState === 'hint-choice' && (
         <div className="review-setup">
           <div className="review-card hint-choice-card">
-            <div className="hint-verse-preview">
-              <p className="idle-preview-text">{verseText}</p>
-              <span className="idle-ref">{ref} · {translation}</span>
-            </div>
-            <div className="hint-divider" />
-            <h2 className="card-heading" style={{ marginBottom: 6 }}>Do you want hints?</h2>
-            <p className="section-desc" style={{ marginBottom: 24 }}>
-              Hints show the first letter of every third word so you have something to jog your memory as you quote.
+
+            {/* ── Mode selection ─────────────────────────────────────────── */}
+            <h2 className="card-heading" style={{ marginBottom: 6 }}>How do you want to practice?</h2>
+            <p className="section-desc" style={{ marginBottom: 18 }}>
+              Practice the full passage in one go, or re-learn it phrase by phrase.
             </p>
-            <div className="hint-choice-btns">
+            <div className="practice-mode-btns">
               <button
-                id="hints-off-btn"
-                className="hint-choice-btn hint-choice-off"
-                onClick={() => handleStartWithHints('off')}
+                id="mode-full-btn"
+                className={`practice-mode-btn ${practiceMode === 'full' ? 'practice-mode-active' : ''}`}
+                onClick={() => setPracticeMode('full')}
               >
-                <span className="hint-choice-icon">🧠</span>
-                <span className="hint-choice-label">No hints</span>
-                <span className="hint-choice-sub">Pure recall</span>
+                <span className="hint-choice-icon">🎙</span>
+                <span className="hint-choice-label">Practice Full</span>
+                <span className="hint-choice-sub">Recite the whole passage</span>
               </button>
               <button
-                id="hints-on-btn"
-                className="hint-choice-btn hint-choice-on"
-                onClick={() => handleStartWithHints('on')}
+                id="mode-parts-btn"
+                className={`practice-mode-btn ${practiceMode === 'parts' ? 'practice-mode-active' : ''}`}
+                onClick={() => setPracticeMode('parts')}
               >
-                <span className="hint-choice-icon">💡</span>
-                <span className="hint-choice-label">Show hints</span>
-                <span className="hint-choice-sub">First letters visible</span>
+                <span className="hint-choice-icon">🧩</span>
+                <span className="hint-choice-label">Practice in Parts</span>
+                <span className="hint-choice-sub">Build phrase by phrase</span>
               </button>
             </div>
+
+            {/* ── Hints option — only for full mode ──────────────────────── */}
+            {practiceMode === 'full' && (
+              <>
+                <div className="hint-divider" />
+                <h3 className="card-subheading" style={{ marginBottom: 6 }}>Do you want hints?</h3>
+                <p className="section-desc" style={{ marginBottom: 18 }}>
+                  Hints show the first letter of every third word to jog your memory.
+                </p>
+                <div className="hint-choice-btns">
+                  <button
+                    id="hints-off-btn"
+                    className="hint-choice-btn hint-choice-off"
+                    onClick={() => handleStartWithHints('off')}
+                  >
+                    <span className="hint-choice-icon">🧠</span>
+                    <span className="hint-choice-label">No hints</span>
+                    <span className="hint-choice-sub">Pure recall</span>
+                  </button>
+                  <button
+                    id="hints-on-btn"
+                    className="hint-choice-btn hint-choice-on"
+                    onClick={() => handleStartWithHints('on')}
+                  >
+                    <span className="hint-choice-icon">💡</span>
+                    <span className="hint-choice-label">Show hints</span>
+                    <span className="hint-choice-sub">First letters visible</span>
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* ── Go button — only for parts mode ───────────────────────── */}
+            {practiceMode === 'parts' && (
+              <button
+                id="start-parts-btn"
+                className="start-btn"
+                onClick={handleStartInParts}
+                style={{ marginTop: 8 }}
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                Begin Parts Session
+              </button>
+            )}
+
+            {/* ── Verse text — collapsible, shown below choices ──────────── */}
+            <div className="hint-divider" style={{ marginTop: 20 }} />
+            <button
+              className="verse-collapse-toggle"
+              onClick={() => setVerseCollapsed((v) => !v)}
+              aria-expanded={!verseCollapsed}
+            >
+              <span>{verseCollapsed ? '▸' : '▾'} {ref} · {translation}</span>
+              <span className="verse-collapse-hint">{verseCollapsed ? 'Show passage' : 'Hide passage'}</span>
+            </button>
+            {!verseCollapsed && (
+              <div className="hint-verse-preview" style={{ marginTop: 10 }}>
+                <p className="idle-preview-text">{verseText}</p>
+              </div>
+            )}
+
           </div>
         </div>
       )}
