@@ -20,6 +20,8 @@ export default function SettingsPage() {
     repeatCount, setRepeatCount,
     translation, setTranslation,
     matchThreshold, setMatchThreshold,
+    pauseBetweenMs, setPauseBetweenMs,
+    pauseMode, setPauseMode,
     theme, setTheme,
   } = useSettingsStore();
 
@@ -297,6 +299,53 @@ export default function SettingsPage() {
             />
             <span className="slider-value">{repeatCount}×</span>
           </div>
+        </section>
+
+        {/* Pause Between Reads */}
+        <section className="settings-section">
+          <h2 className="section-heading">Pause Between Reads</h2>
+          <p className="section-desc">
+            After each read, how long should the app wait before reading again?
+          </p>
+          <div className="trans-toggle" style={{ marginBottom: '12px' }}>
+            <button
+              id="pause-mode-fixed"
+              className={`trans-btn ${pauseMode === 'fixed' ? 'trans-active' : ''}`}
+              onClick={() => setPauseMode('fixed')}
+            >
+              ⏱ Fixed
+            </button>
+            <button
+              id="pause-mode-echo"
+              className={`trans-btn ${pauseMode === 'echo' ? 'trans-active' : ''}`}
+              onClick={() => setPauseMode('echo')}
+            >
+              🔁 Echo
+            </button>
+          </div>
+          {pauseMode === 'fixed' ? (
+            <>
+              <p className="section-desc" style={{ marginBottom: '8px' }}>
+                Wait a fixed amount of time between each repeat.
+              </p>
+              <div className="slider-row">
+                <input
+                  id="pause-between-slider"
+                  type="range"
+                  min={500} max={5000} step={250}
+                  value={pauseBetweenMs}
+                  onChange={(e) => setPauseBetweenMs(Number(e.target.value))}
+                  className="settings-slider"
+                />
+                <span className="slider-value">{(pauseBetweenMs / 1000).toFixed(2).replace(/\.?0+$/, '')}s</span>
+              </div>
+            </>
+          ) : (
+            <p className="section-desc">
+              <strong>Echo mode</strong> — after each read the app pauses for exactly as long as the audio clip lasted.
+              This gives you time to repeat it back aloud before the next play begins.
+            </p>
+          )}
         </section>
 
         {/* Match threshold */}

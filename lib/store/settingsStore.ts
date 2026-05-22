@@ -24,7 +24,8 @@ interface SettingsState {
   repeatCount: number;        // how many times TTS reads before mic opens
   translation: 'BSB' | 'KJV';
   matchThreshold: number;     // 0.0–1.0, how strict the fuzzy match is
-  pauseBetweenMs: number;     // ms of silence between repetitions (500–3000)
+  pauseBetweenMs: number;     // ms of silence between repetitions (500–5000)
+  pauseMode: 'fixed' | 'echo'; // 'fixed' = pauseBetweenMs; 'echo' = duration of clip just played
   readingSpeed: number;       // TTS speed 0.7–1.2 (0.85 = deliberate)
   theme: 'light' | 'dark' | 'system';
   hasSelectedVoice: boolean;  // Whether the user has confirmed their initial voice
@@ -35,6 +36,7 @@ interface SettingsState {
   setTranslation: (t: 'BSB' | 'KJV') => void;
   setMatchThreshold: (v: number) => void;
   setPauseBetweenMs: (ms: number) => void;
+  setPauseMode: (mode: 'fixed' | 'echo') => void;
   setReadingSpeed: (s: number) => void;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   setHasSelectedVoice: (selected: boolean) => void;
@@ -48,8 +50,9 @@ export const useSettingsStore = create<SettingsState>()(
       voiceId: 'fnYMz3F5gMEDGMWcH1ex', // Finley (Default)
       repeatCount: 3,
       translation: 'BSB',
-      matchThreshold: 0.70,
-      pauseBetweenMs: 1500,             // 1.5s breath between repeats
+      matchThreshold: 0.60,             // 60% — forgiving enough for STT mishears
+      pauseBetweenMs: 1500,             // 1.5s breath between repeats (fixed mode)
+      pauseMode: 'fixed',               // 'fixed' or 'echo' (mirror audio duration)
       readingSpeed: 0.85,               // Slightly slower than normal — deliberate
       theme: 'light',
       hasSelectedVoice: false,
@@ -60,6 +63,7 @@ export const useSettingsStore = create<SettingsState>()(
       setTranslation: (t) => set({ translation: t }),
       setMatchThreshold: (v) => set({ matchThreshold: v }),
       setPauseBetweenMs: (ms) => set({ pauseBetweenMs: ms }),
+      setPauseMode: (mode) => set({ pauseMode: mode }),
       setReadingSpeed: (s) => set({ readingSpeed: s }),
       setTheme: (theme) => set({ theme }),
       setHasSelectedVoice: (selected) => set({ hasSelectedVoice: selected }),

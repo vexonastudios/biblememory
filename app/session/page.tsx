@@ -42,7 +42,7 @@ export default function SessionPage() {
 
   const {
     elevenLabsApiKey, voiceId, repeatCount, matchThreshold,
-    pauseBetweenMs, readingSpeed,
+    pauseBetweenMs, pauseMode, readingSpeed,
   } = useSettingsStore();
 
   const [serverHasKey, setServerHasKey] = useState(false);
@@ -72,8 +72,9 @@ export default function SessionPage() {
 
   // Fetch and play phraseText. Uses client-side buffer cache so each phrase
   // hits ElevenLabs only ONCE — repeats 2, 3, … play from the cached ArrayBuffer.
+  // Returns { ok: whether playback succeeded, durationMs: length of the clip in ms }.
   const playOnce = useCallback(
-    (phraseText: string, token: number): Promise<boolean> => {
+    (phraseText: string, token: number): Promise<{ ok: boolean; durationMs: number }> => {
       return new Promise((resolve) => {
         // Stop anything still playing
         if (audioRef.current) {
@@ -84,14 +85,19 @@ export default function SessionPage() {
         const cacheKey = makeCacheKey(voiceId, readingSpeed, phraseText);
 
         const playBuffer = (buffer: ArrayBuffer) => {
-          if (loopTokenRef.current !== token) { resolve(false); return; }
+          if (loopTokenRef.current !== token) { resolve({ ok: false, durationMs: 0 }); return; }
           // Clone the buffer so the Audio element gets its own copy
           const url = URL.createObjectURL(new Blob([buffer], { type: 'audio/mpeg' }));
           const audio = new Audio(url);
           audioRef.current = audio;
-          audio.onended = () => { URL.revokeObjectURL(url); audioRef.current = null; resolve(true); };
-          audio.onerror = () => { URL.revokeObjectURL(url); audioRef.current = null; resolve(false); };
-          audio.play().catch(() => { URL.revokeObjectURL(url); resolve(false); });
+          let durationMs = 0;
+          // Capture duration as soon as metadata is available
+          audio.onloadedmetadata = () => {
+            durationMs = Math.round((audio.duration || 0) * 1000);
+          };
+          audio.onended = () => { URL.revokeObjectURL(url); audioRef.current = null; resolve({ ok: true, durationMs }); };
+          audio.onerror = () => { URL.revokeObjectURL(url); audioRef.current = null; resolve({ ok: false, durationMs: 0 }); };
+          audio.play().catch(() => { URL.revokeObjectURL(url); resolve({ ok: false, durationMs: 0 }); });
         };
 
         // ── Cache hit: play immediately, no network call ──────────────────────
@@ -113,18 +119,18 @@ export default function SessionPage() {
           }),
         })
           .then((res) => {
-            if (loopTokenRef.current !== token) { resolve(false); return null; }
-            if (!res.ok) { resolve(false); return null; }
+            if (loopTokenRef.current !== token) { resolve({ ok: false, durationMs: 0 }); return null; }
+            if (!res.ok) { resolve({ ok: false, durationMs: 0 }); return null; }
             return res.arrayBuffer();
           })
           .then((buf) => {
             if (!buf) return;
-            if (loopTokenRef.current !== token) { resolve(false); return; }
+            if (loopTokenRef.current !== token) { resolve({ ok: false, durationMs: 0 }); return; }
             // Store in cache for all subsequent repeats and step-backs
             audioBufferCache.set(cacheKey, buf);
             playBuffer(buf);
           })
-          .catch(() => resolve(false));
+          .catch(() => resolve({ ok: false, durationMs: 0 }));
       });
     },
     [voiceId, elevenLabsApiKey, readingSpeed]
@@ -177,12 +183,16 @@ export default function SessionPage() {
         // Bail if cancelled or phase changed
         if (loopTokenRef.current !== token || phaseRef.current !== 'reading') return;
         setLoopIndex(i);
-        await playOnce(text, token);
+        const { ok, durationMs } = await playOnce(text, token);
+        if (!ok) return;
 
         // Pause between reads (but not after the final one)
         if (i < repeatCount) {
           if (loopTokenRef.current !== token || phaseRef.current !== 'reading') return;
-          await new Promise<void>((r) => setTimeout(r, pauseBetweenMs));
+          // Echo mode: wait as long as the clip that just played (user repeats it back)
+          // Fixed mode: wait the configured fixed duration
+          const waitMs = pauseMode === 'echo' ? Math.max(durationMs, 500) : pauseBetweenMs;
+          await new Promise<void>((r) => setTimeout(r, waitMs));
         }
       }
 
@@ -193,7 +203,7 @@ export default function SessionPage() {
       setPhase('listening');
       openMicRef.current?.(text);
     },
-    [accumulated, repeatCount, pauseBetweenMs, setLoopIndex, playOnce, setPhase]
+    [accumulated, repeatCount, pauseMode, pauseBetweenMs, setLoopIndex, playOnce, setPhase]
   );
 
   useEffect(() => {
@@ -266,7 +276,12 @@ export default function SessionPage() {
               <span className="idle-ref">{reference}</span>
             </div>
             <div className="idle-info">
-              <p>Each phrase is read <strong>{repeatCount}×</strong> with a <strong>{(pauseBetweenMs / 1000).toFixed(1)}s</strong> breath between repeats.</p>
+              <p>Each phrase is read <strong>{repeatCount}×</strong> with a{' '}
+                {pauseMode === 'echo'
+                  ? <strong>matching echo pause</strong>
+                  : <><strong>{(pauseBetweenMs / 1000).toFixed(1)}s</strong> fixed pause</>}
+                {' '}between repeats.
+              </p>
               <p>Then the mic opens — say everything you've learned so far to advance.</p>
               {!elevenLabsApiKey && !serverHasKey && (
                 <p className="idle-warning">
