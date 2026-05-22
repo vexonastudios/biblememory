@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getLocalBsbVerse } from '@/lib/bibleParser';
 
 const BIBLE_TRANSLATIONS: Record<string, string> = {
   BSB: 'BSB',
@@ -36,6 +37,24 @@ export async function GET(request: NextRequest) {
   }
 
   const { book, chapter, verse } = parsed;
+
+  // Handle local BSB verses
+  if (translation.toUpperCase() === 'BSB') {
+    const localVerse = getLocalBsbVerse(book, chapter, verse);
+    if (localVerse) {
+      return NextResponse.json({
+        reference: localVerse.reference,
+        text: localVerse.text,
+        translation: 'BSB',
+        book: localVerse.book,
+        chapter: localVerse.chapter,
+        verse: localVerse.verse,
+      });
+    } else {
+      return NextResponse.json({ error: `Verse not found: ${book} ${chapter}:${verse}` }, { status: 404 });
+    }
+  }
+
   const bookKey = normalizeBook(book);
   const transKey = translation.toUpperCase() === 'KJV' ? 'en-kjv' : 'en-bsb';
 
