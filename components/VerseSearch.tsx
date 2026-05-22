@@ -11,16 +11,14 @@ interface Props {
 }
 
 const QUICK_REFS = [
-  // Single verses
-  { label: 'John 3:16',        ref: 'John 3:16' },
-  { label: 'Romans 8:28',      ref: 'Romans 8:28' },
-  { label: 'Phil 4:13',        ref: 'Philippians 4:13' },
-  // Passages / ranges
   { label: 'Psalm 23',         ref: 'Psalm 23' },
+  { label: 'Psalm 119:9–16',   ref: 'Psalm 119:9-16' },
   { label: 'Romans 8:28–39',   ref: 'Romans 8:28-39' },
   { label: 'John 3:16–21',     ref: 'John 3:16-21' },
   { label: '1 Cor 13',         ref: '1 Corinthians 13' },
   { label: 'Eph 6:10–18',      ref: 'Ephesians 6:10-18' },
+  { label: 'Phil 4:4–13',      ref: 'Philippians 4:4-13' },
+  { label: 'Isaiah 40:28–31',  ref: 'Isaiah 40:28-31' },
 ];
 
 const FORMAT_EXAMPLES = [
