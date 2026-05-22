@@ -42,34 +42,15 @@ export function startListening(options: RecognizerOptions): void {
   recognition!.lang = 'en-US';
   recognition!.maxAlternatives = 1;
 
-  // Accumulate finalized segments across events.
-  // The Web Speech API fires onresult for EVERY new partial/final result,
-  // always including all previous results in event.results. If we iterate
-  // from i=0 each time we get duplication (e.g. "for God for God for God").
-  // Instead we keep our own running string of confirmed-final text, and only
-  // append new entries starting from event.resultIndex.
-  let finalizedTranscript = '';
-
   recognition!.onresult = (event: any) => {
-    let interimTranscript = '';
-
     for (let i = event.resultIndex; i < event.results.length; i++) {
-      const segment = event.results[i][0].transcript;
-      if (event.results[i].isFinal) {
-        finalizedTranscript += segment;
-      } else {
-        interimTranscript = segment; // only the latest interim matters
-      }
+      const result = event.results[i];
+      options.onResult({
+        transcript: result[0].transcript.trim(),
+        isFinal: result.isFinal,
+        confidence: result[0].confidence,
+      });
     }
-
-    const fullTranscript = (finalizedTranscript + ' ' + interimTranscript).trim();
-    const lastResult = event.results[event.results.length - 1];
-
-    options.onResult({
-      transcript: fullTranscript,
-      isFinal: lastResult.isFinal,
-      confidence: lastResult[0].confidence,
-    });
   };
 
   recognition!.onend = () => {
