@@ -2,6 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 /**
+ * Simple in-memory rate limiter.
+ * Tracks request counts per IP within a rolling 60-second window.
+ * Max 60 requests/IP/minute — well above any legitimate single-session use,
+ * but catches runaway fetch loops.
+ */
+const rateLimitMap = new Map<string, { count: number; windowStart: number }>();
+const RATE_LIMIT_MAX = 60;       // requests per window
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateLimitMap.set(ip, { count: 1, windowStart: now });
+    return true; // allowed
+  }
+
+  entry.count += 1;
+  if (entry.count > RATE_LIMIT_MAX) {
+    return false; // blocked
+  }
+  return true;
+}
+
+/**
  * In-memory audio cache.
  * Key  = SHA-256(voiceId + ssml) — content-addressed, user-agnostic
  * Value = ArrayBuffer of the MP3
@@ -25,6 +51,20 @@ function makeCacheKey(voiceId: string, ssml: string, speed: number): string {
 }
 
 export async function POST(request: NextRequest) {
+  // ── Rate limit ──────────────────────────────────────────────────────────────
+  const ip =
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    request.headers.get('x-real-ip') ??
+    'unknown';
+
+  if (!checkRateLimit(ip)) {
+    console.warn(`[TTS] Rate limit exceeded for IP: ${ip}`);
+    return NextResponse.json(
+      { error: 'Too many requests — please wait a moment and try again.' },
+      { status: 429, headers: { 'Retry-After': '60' } }
+    );
+  }
+
   const body = await request.json();
   const {
     ssml,           // Pre-built SSML string with repetitions + breaks

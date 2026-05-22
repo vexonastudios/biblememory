@@ -12,6 +12,21 @@ import MicButton from '@/components/MicButton';
 import ProgressRing from '@/components/ProgressRing';
 import Link from 'next/link';
 
+/**
+ * Module-level audio buffer cache.
+ * Key  = `${voiceId}::${speed}::${text}` — same key structure as server cache.
+ * Value = ArrayBuffer of the MP3.
+ *
+ * Survives React re-renders (module scope) but clears on full page reload.
+ * This is the primary defence against repeated API calls for the same phrase
+ * across repeat loops — each phrase is fetched ONCE, then played locally N times.
+ */
+const audioBufferCache = new Map<string, ArrayBuffer>();
+
+function makeCacheKey(voiceId: string, speed: number, text: string): string {
+  return `${voiceId}::${speed}::${text}`;
+}
+
 export default function SessionPage() {
   const router = useRouter();
 
@@ -55,7 +70,8 @@ export default function SessionPage() {
     if (!phrases.length) router.replace('/');
   }, [phrases, router]);
 
-  // Fetch and play a single reading of phraseText. Resolves when audio ends.
+  // Fetch and play phraseText. Uses client-side buffer cache so each phrase
+  // hits ElevenLabs only ONCE — repeats 2, 3, … play from the cached ArrayBuffer.
   const playOnce = useCallback(
     (phraseText: string, token: number): Promise<boolean> => {
       return new Promise((resolve) => {
@@ -65,6 +81,27 @@ export default function SessionPage() {
           audioRef.current = null;
         }
 
+        const cacheKey = makeCacheKey(voiceId, readingSpeed, phraseText);
+
+        const playBuffer = (buffer: ArrayBuffer) => {
+          if (loopTokenRef.current !== token) { resolve(false); return; }
+          // Clone the buffer so the Audio element gets its own copy
+          const url = URL.createObjectURL(new Blob([buffer], { type: 'audio/mpeg' }));
+          const audio = new Audio(url);
+          audioRef.current = audio;
+          audio.onended = () => { URL.revokeObjectURL(url); audioRef.current = null; resolve(true); };
+          audio.onerror = () => { URL.revokeObjectURL(url); audioRef.current = null; resolve(false); };
+          audio.play().catch(() => { URL.revokeObjectURL(url); resolve(false); });
+        };
+
+        // ── Cache hit: play immediately, no network call ──────────────────────
+        const cached = audioBufferCache.get(cacheKey);
+        if (cached) {
+          playBuffer(cached);
+          return;
+        }
+
+        // ── Cache miss: fetch from ElevenLabs, cache the result ───────────────
         fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -76,20 +113,16 @@ export default function SessionPage() {
           }),
         })
           .then((res) => {
-            // If this loop was cancelled while fetching, bail
-            if (loopTokenRef.current !== token) { resolve(false); return; }
-            if (!res.ok) { resolve(false); return; }
-            return res.blob();
+            if (loopTokenRef.current !== token) { resolve(false); return null; }
+            if (!res.ok) { resolve(false); return null; }
+            return res.arrayBuffer();
           })
-          .then((blob) => {
-            if (!blob) return;
+          .then((buf) => {
+            if (!buf) return;
             if (loopTokenRef.current !== token) { resolve(false); return; }
-            const url = URL.createObjectURL(blob);
-            const audio = new Audio(url);
-            audioRef.current = audio;
-            audio.onended = () => { URL.revokeObjectURL(url); audioRef.current = null; resolve(true); };
-            audio.onerror = () => { URL.revokeObjectURL(url); audioRef.current = null; resolve(false); };
-            audio.play().catch(() => { URL.revokeObjectURL(url); resolve(false); });
+            // Store in cache for all subsequent repeats and step-backs
+            audioBufferCache.set(cacheKey, buf);
+            playBuffer(buf);
           })
           .catch(() => resolve(false));
       });
