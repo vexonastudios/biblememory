@@ -248,10 +248,13 @@ input, select, textarea { font-family: inherit; }
 .search-row {
   display: flex;
   gap: 8px;
+  /* Ensure children can shrink below their intrinsic width */
+  overflow: hidden;
 }
 
 .search-input {
   flex: 1;
+  min-width: 0;          /* Allows flex shrink to work — without this the input overflows */
   background: rgba(255,255,255,0.06);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -2245,7 +2248,10 @@ input[type="range"] { min-height: auto; }
   .how-it-works .how-arrow { display: none; }
   .how-it-works .how-step { flex-direction: column; align-items: flex-start; gap: 4px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; }
   .verse-full-text { font-size: 16px; padding: 16px; }
-  .search-input { font-size: 16px; }
+  .verse-search { padding: 20px 16px 18px; }
+  .search-input { font-size: 16px; padding: 11px 12px; }
+  .translation-select { padding: 0 8px; font-size: 13px; }
+  .search-btn { width: 42px; height: 42px; flex-shrink: 0; }
   .phrase-input { font-size: 16px; }
   .start-btn { font-size: 15px; padding: 14px; }
   .review-mode-banner { padding: 14px; gap: 10px; }
