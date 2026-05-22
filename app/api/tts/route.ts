@@ -150,8 +150,10 @@ export async function POST(request: NextRequest) {
 
     const audioBuffer = await res.arrayBuffer();
 
-    // Write to R2 (fire-and-forget — don't block the response)
-    putAudioToR2(r2Key, audioBuffer).catch(() => {});
+    // Write to R2 — must await before returning, because Vercel freezes the
+    // serverless function the instant a response is sent. Fire-and-forget
+    // promises are silently killed before they complete.
+    await putAudioToR2(r2Key, audioBuffer);
 
     // Warm the in-process memory cache
     if (audioCache.size >= 200) {
