@@ -42,28 +42,33 @@ export function startListening(options: RecognizerOptions): void {
   recognition!.lang = 'en-US';
   recognition!.maxAlternatives = 1;
 
-  recognition!.onresult = (event: any) => {
-    // Accumulate ALL results — finalized segments + latest interim — into
-    // one full transcript. Without this, each segment is checked individually
-    // and a perfectly spoken verse can fail because no single segment covers
-    // the full target text.
-    let fullTranscript = '';
-    let latestConfidence = 0;
-    let allFinal = true;
+  // Accumulate finalized segments across events.
+  // The Web Speech API fires onresult for EVERY new partial/final result,
+  // always including all previous results in event.results. If we iterate
+  // from i=0 each time we get duplication (e.g. "for God for God for God").
+  // Instead we keep our own running string of confirmed-final text, and only
+  // append new entries starting from event.resultIndex.
+  let finalizedTranscript = '';
 
-    for (let i = 0; i < event.results.length; i++) {
-      fullTranscript += event.results[i][0].transcript;
-      if (!event.results[i].isFinal) allFinal = false;
+  recognition!.onresult = (event: any) => {
+    let interimTranscript = '';
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const segment = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalizedTranscript += segment;
+      } else {
+        interimTranscript = segment; // only the latest interim matters
+      }
     }
 
-    // Confidence from the most recent result
+    const fullTranscript = (finalizedTranscript + ' ' + interimTranscript).trim();
     const lastResult = event.results[event.results.length - 1];
-    latestConfidence = lastResult[0].confidence;
 
     options.onResult({
-      transcript: fullTranscript.trim(),
-      isFinal: allFinal,
-      confidence: latestConfidence,
+      transcript: fullTranscript,
+      isFinal: lastResult.isFinal,
+      confidence: lastResult[0].confidence,
     });
   };
 
