@@ -250,11 +250,12 @@ export default function LibraryPage() {
             <div className="lib-empty-icon">📖</div>
             <h2 className="lib-empty-title">Your library is empty</h2>
             <p className="lib-empty-sub">
-              Complete a memory session to automatically add verses here.
-              They&apos;ll be scheduled for spaced repetition review.
+              Search for a verse or passage on the home screen and hit{' '}
+              <strong>Start Memory Session</strong> — it will be added here
+              automatically and scheduled for spaced repetition review.
             </p>
             <Link href="/" className="lib-empty-btn">
-              Memorize a Verse
+              Memorize a Passage
             </Link>
           </div>
         )}

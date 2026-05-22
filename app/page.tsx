@@ -26,6 +26,7 @@ export default function HomePage() {
     voiceId, setVoiceId,
     hasSelectedVoice, setHasSelectedVoice
   } = useSettingsStore();
+  const addVerse = useLibraryStore((s) => s.addVerse);
   const dueCount = useLibraryStore((s) => s.dueCount());
 
   // Voice selection states for first-time modal
@@ -139,6 +140,9 @@ export default function HomePage() {
 
   const handleStartSession = () => {
     if (!fetched) return;
+    // Claim this passage immediately — adds to library and recite mode
+    // (store skips if already present, so no duplicate risk)
+    addVerse(fetched.reference, fetched.text, fetched.translation as 'BSB' | 'KJV');
     setVerse(fetched.reference, fetched.text, editedPhrases, fetched.translation);
     router.push('/session');
   };
