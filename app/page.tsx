@@ -395,7 +395,7 @@ export default function HomePage() {
           }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-                <img src="/logo.png" alt="Inscribed Logo" style={{ height: '48px', width: 'auto' }} />
+                <img src="/logo.png" alt="Inscribed Logo" style={{ height: '54px', width: 'auto' }} />
               </div>
               <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
                 Welcome to Inscribed
