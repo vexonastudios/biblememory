@@ -247,13 +247,20 @@ input, select, textarea { font-family: inherit; }
 .search-row {
   display: flex;
   gap: 8px;
-  /* Ensure children can shrink below their intrinsic width */
-  overflow: hidden;
+  /* overflow:visible so the autocomplete dropdown isn't clipped */
+  overflow: visible;
+}
+
+/* Wrapper that takes flex-space and provides anchor for dropdown */
+.search-input-wrap {
+  flex: 1;
+  min-width: 0;
+  position: relative;
 }
 
 .search-input {
-  flex: 1;
-  min-width: 0;          /* Allows flex shrink to work — without this the input overflows */
+  width: 100%;
+  min-width: 0;
   background: rgba(255,255,255,0.06);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -269,6 +276,38 @@ input, select, textarea { font-family: inherit; }
   box-shadow: 0 0 0 3px rgba(var(--gold-rgb),0.10);
 }
 .search-input::placeholder { color: var(--text-muted); }
+
+/* ── Book autocomplete dropdown ──────────────────────────────────────────── */
+.book-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: var(--bg-mid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  max-height: 220px;
+  overflow-y: auto;
+  backdrop-filter: blur(12px);
+}
+.book-suggestion-item {
+  padding: 10px 16px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  letter-spacing: 0.01em;
+}
+.book-suggestion-item:hover,
+.book-suggestion-item.active {
+  background: rgba(var(--gold-rgb), 0.12);
+  color: var(--gold);
+}
 
 .translation-select {
   background: rgba(255,255,255,0.06);

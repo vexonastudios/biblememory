@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import BookAutocompleteInput from './BookAutocompleteInput';
 
 interface Props {
   onFetch: (reference: string, translation: 'BSB' | 'KJV') => Promise<void>;
@@ -73,14 +74,11 @@ export default function VerseSearch({ onFetch, loading, error, translation, onTr
 
       <form onSubmit={handleSubmit} className="search-form">
         <div className="search-row">
-          <input
+          <BookAutocompleteInput
             id="verse-ref-input"
-            className="search-input"
-            type="text"
             value={ref}
-            onChange={(e) => setRef(e.target.value)}
-            placeholder="e.g. John 3:16 · Romans 8:28-39 · Psalm 23"
-            autoComplete="off"
+            onChange={setRef}
+            onSubmit={() => { if (ref.trim()) onFetch(ref.trim(), translation); }}
           />
           <select
             id="translation-select"

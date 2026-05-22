@@ -11,6 +11,7 @@ import {
 } from '@/lib/reviewTracker';
 import { playErrorBeep, playWordTick, playCompletionFanfare } from '@/lib/beep';
 import { startListening, stopListening } from '@/lib/speechRecognizer';
+import BookAutocompleteInput from '@/components/BookAutocompleteInput';
 
 type PageState = 'setup' | 'hint-choice' | 'listening' | 'error' | 'complete';
 type HintsMode = 'on' | 'off';
@@ -264,13 +265,12 @@ function ReviewPageInner() {
             <h2 className="card-heading">Choose a Verse or Passage</h2>
 
             <div className="search-row" style={{ marginBottom: 12 }}>
-              <input
+              <BookAutocompleteInput
                 id="review-ref-input"
-                className="search-input"
                 value={ref}
-                onChange={(e) => setRef(e.target.value)}
+                onChange={setRef}
+                onSubmit={() => fetchVerse(ref, translation)}
                 placeholder="e.g. John 3:16"
-                onKeyDown={(e) => e.key === 'Enter' && fetchVerse(ref, translation)}
               />
               <select
                 id="review-translation-select"
