@@ -65,7 +65,7 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
       phrases,
       translation,
       currentStep: 0,
-      phase: 'idle',
+      phase: 'reading',
       loopIndex: 0,
       transcript: '',
       matchScore: 0,

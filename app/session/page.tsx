@@ -250,6 +250,27 @@ export default function SessionPage() {
 
         {(phase === 'reading' || phase === 'listening' || phase === 'passed' || phase === 'failed') && (
           <div className="active-screen">
+            {!elevenLabsApiKey && !serverHasKey && (
+              <div
+                className="active-key-warning"
+                style={{
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  color: '#ef4444',
+                  padding: '8px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '12px',
+                  textAlign: 'center',
+                  width: '100%',
+                  boxSizing: 'border-box'
+                }}
+              >
+                ⚠ Audio disabled: No ElevenLabs API key found.{' '}
+                <Link href="/settings" style={{ textDecoration: 'underline', color: 'inherit' }}>
+                  Configure in Settings
+                </Link>
+              </div>
+            )}
             <div className="top-indicators">
               <ProgressRing current={loopIndex} total={repeatCount} />
               <div className="phase-label">
