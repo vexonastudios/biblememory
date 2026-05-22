@@ -1314,6 +1314,16 @@ input, select, textarea { font-family: inherit; }
   animation: spin 0.7s linear infinite;
 }
 
+.spinner-small {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(var(--gold-rgb), 0.2);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── Scrollbar ───────────────────────────────────────────────────── */

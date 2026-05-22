@@ -3,6 +3,21 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export interface PresetVoice {
+  voice_id: string;
+  name: string;
+  gender: string;
+  accent: string;
+  age: string;
+}
+
+export const PRESET_VOICES: PresetVoice[] = [
+  { voice_id: 'fnYMz3F5gMEDGMWcH1ex', name: 'Finley', gender: 'Male', accent: 'American', age: 'Adult' },
+  { voice_id: 'RILOU7YmBhvwJGDGjNmP', name: 'Jane', gender: 'Female', accent: 'American', age: 'Adult' },
+  { voice_id: 'mZ8K1MPRiT5wDQaasg3i', name: 'Alexander', gender: 'Male', accent: 'American', age: 'Adult' },
+  { voice_id: 'NNl6r8mD7vthiJatiJt1', name: 'Bradford', gender: 'Male', accent: 'American', age: 'Adult' },
+];
+
 interface SettingsState {
   elevenLabsApiKey: string;
   voiceId: string;
@@ -12,6 +27,7 @@ interface SettingsState {
   pauseBetweenMs: number;     // ms of silence between repetitions (500–3000)
   readingSpeed: number;       // TTS speed 0.7–1.2 (0.85 = deliberate)
   theme: 'light' | 'dark' | 'system';
+  hasSelectedVoice: boolean;   // Whether the user has chosen their initial voice
   setElevenLabsApiKey: (key: string) => void;
   setVoiceId: (id: string) => void;
   setRepeatCount: (count: number) => void;
@@ -20,19 +36,21 @@ interface SettingsState {
   setPauseBetweenMs: (ms: number) => void;
   setReadingSpeed: (s: number) => void;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
+  setHasSelectedVoice: (selected: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       elevenLabsApiKey: '',
-      voiceId: 'EXAVITQu4vr4xnSDxMaL', // ElevenLabs "Sarah" — warm, clear
+      voiceId: 'fnYMz3F5gMEDGMWcH1ex', // Finley (Default)
       repeatCount: 3,
       translation: 'BSB',
       matchThreshold: 0.70,
       pauseBetweenMs: 1500,             // 1.5s breath between repeats
       readingSpeed: 0.85,               // Slightly slower than normal — deliberate
       theme: 'light',
+      hasSelectedVoice: false,
       setElevenLabsApiKey: (key) => set({ elevenLabsApiKey: key }),
       setVoiceId: (id) => set({ voiceId: id }),
       setRepeatCount: (count) => set({ repeatCount: count }),
@@ -41,6 +59,7 @@ export const useSettingsStore = create<SettingsState>()(
       setPauseBetweenMs: (ms) => set({ pauseBetweenMs: ms }),
       setReadingSpeed: (s) => set({ readingSpeed: s }),
       setTheme: (theme) => set({ theme }),
+      setHasSelectedVoice: (selected) => set({ hasSelectedVoice: selected }),
     }),
     { name: 'bible-memory-settings' }
   )

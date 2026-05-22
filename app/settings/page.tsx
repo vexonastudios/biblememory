@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSettingsStore } from '@/lib/store/settingsStore';
+import { useSettingsStore, PRESET_VOICES } from '@/lib/store/settingsStore';
 import Link from 'next/link';
 
 interface Voice {
@@ -30,6 +30,11 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [serverHasKey, setServerHasKey] = useState(false);
 
+  // Preview state
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+
   useEffect(() => {
     fetch('/api/config')
       .then((res) => res.json())
@@ -37,10 +42,56 @@ export default function SettingsPage() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (audioElement) {
+        audioElement.pause();
+      }
+    };
+  }, [audioElement]);
+
   const handleSave = () => {
     setElevenLabsApiKey(apiKeyInput);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handlePlayPreview = async (vId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (audioElement) {
+      audioElement.pause();
+      setPlayingId(null);
+    }
+    if (playingId === vId) {
+      setPlayingId(null);
+      return;
+    }
+    setPreviewLoadingId(vId);
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: "I have hidden Your word in my heart that I might not sin against You.",
+          voiceId: vId,
+          speed: 0.85
+        })
+      });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      setAudioElement(audio);
+      setPlayingId(vId);
+      setPreviewLoadingId(null);
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        setPlayingId(null);
+      };
+      audio.play().catch(() => setPlayingId(null));
+    } catch {
+      setPreviewLoadingId(null);
+    }
   };
 
   const loadVoices = async () => {
@@ -112,22 +163,118 @@ export default function SettingsPage() {
         {/* Voice */}
         <section className="settings-section">
           <h2 className="section-heading">Voice</h2>
-          {voices.length === 0 ? (
-            <p className="section-desc">Load voices above to choose. Default: Sarah (warm, clear).</p>
-          ) : (
-            <div className="voice-grid">
-              {voices.map((v) => (
-                <button
-                  key={v.voice_id}
-                  id={`voice-${v.voice_id}`}
-                  className={`voice-card ${voiceId === v.voice_id ? 'voice-selected' : ''}`}
-                  onClick={() => setVoiceId(v.voice_id)}
-                >
+          <p className="section-desc">
+            Choose a preset narrator voice below, or load your custom ElevenLabs voices.
+          </p>
+          
+          <h3 className="section-subheading" style={{ fontSize: '0.9rem', fontWeight: 600, margin: '16px 0 8px', color: 'var(--text-secondary)' }}>Preset Voices</h3>
+          <div className="voice-grid">
+            {PRESET_VOICES.map((v) => (
+              <div
+                key={v.voice_id}
+                id={`voice-${v.voice_id}`}
+                className={`voice-card ${voiceId === v.voice_id ? 'voice-selected' : ''}`}
+                onClick={() => setVoiceId(v.voice_id)}
+                style={{ cursor: 'pointer' }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setVoiceId(v.voice_id); }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                   <span className="voice-name">{v.name}</span>
-                  <span className="voice-meta">{[v.gender, v.accent, v.age].filter(Boolean).join(' · ')}</span>
-                </button>
-              ))}
-            </div>
+                  <button
+                    onClick={(e) => handlePlayPreview(v.voice_id, e)}
+                    className="preview-play-btn"
+                    title="Listen to preview"
+                    aria-label={`Listen to preview of ${v.name}`}
+                    style={{
+                      padding: '4px',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: playingId === v.voice_id ? 'var(--gold)' : 'rgba(var(--gold-rgb), 0.08)',
+                      color: playingId === v.voice_id ? '#fff' : 'var(--gold)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      width: '24px',
+                      height: '24px',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {previewLoadingId === v.voice_id ? (
+                      <span className="spinner-small"></span>
+                    ) : playingId === v.voice_id ? (
+                      <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12">
+                        <rect x="6" y="6" width="12" height="12" rx="1" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                <span className="voice-meta">{[v.gender, v.accent, v.age].filter(Boolean).join(' · ')}</span>
+              </div>
+            ))}
+          </div>
+
+          {voices.length > 0 && (
+            <>
+              <h3 className="section-subheading" style={{ fontSize: '0.9rem', fontWeight: 600, margin: '20px 0 8px', color: 'var(--text-secondary)' }}>Custom Voices</h3>
+              <div className="voice-grid">
+                {voices.map((v) => (
+                  <div
+                    key={v.voice_id}
+                    id={`voice-${v.voice_id}`}
+                    className={`voice-card ${voiceId === v.voice_id ? 'voice-selected' : ''}`}
+                    onClick={() => setVoiceId(v.voice_id)}
+                    style={{ cursor: 'pointer' }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setVoiceId(v.voice_id); }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                      <span className="voice-name">{v.name}</span>
+                      <button
+                        onClick={(e) => handlePlayPreview(v.voice_id, e)}
+                        className="preview-play-btn"
+                        title="Listen to preview"
+                        aria-label={`Listen to preview of ${v.name}`}
+                        style={{
+                          padding: '4px',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: playingId === v.voice_id ? 'var(--gold)' : 'rgba(var(--gold-rgb), 0.08)',
+                          color: playingId === v.voice_id ? '#fff' : 'var(--gold)',
+                          border: 'none',
+                          cursor: 'pointer',
+                          width: '24px',
+                          height: '24px',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {previewLoadingId === v.voice_id ? (
+                          <span className="spinner-small"></span>
+                        ) : playingId === v.voice_id ? (
+                          <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12">
+                            <rect x="6" y="6" width="12" height="12" rx="1" />
+                          </svg>
+                        ) : (
+                          <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                    <span className="voice-meta">{[v.gender, v.accent, v.age].filter(Boolean).join(' · ')}</span>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </section>
 

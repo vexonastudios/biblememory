@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import VerseSearch from '@/components/VerseSearch';
 import { parseVerseIntoPhrases, Phrase } from '@/lib/phraseParser';
 import { useSessionStore } from '@/lib/store/sessionStore';
-import { useSettingsStore } from '@/lib/store/settingsStore';
+import { useSettingsStore, PRESET_VOICES } from '@/lib/store/settingsStore';
 import { useLibraryStore } from '@/lib/store/libraryStore';
 import Link from 'next/link';
 
@@ -20,8 +20,82 @@ interface FetchedVerse {
 export default function HomePage() {
   const router = useRouter();
   const { setVerse } = useSessionStore();
-  const { translation: defaultTranslation, setTranslation, theme, setTheme } = useSettingsStore();
+  const {
+    translation: defaultTranslation, setTranslation,
+    theme, setTheme,
+    voiceId, setVoiceId,
+    hasSelectedVoice, setHasSelectedVoice
+  } = useSettingsStore();
   const dueCount = useLibraryStore((s) => s.dueCount());
+
+  // Voice selection states for first-time modal
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const [selectedModalVoice, setSelectedModalVoice] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Set default selected voice in modal to current voice if preset
+    if (voiceId) {
+      setSelectedModalVoice(voiceId);
+    }
+  }, [voiceId]);
+
+  useEffect(() => {
+    return () => {
+      if (audioElement) {
+        audioElement.pause();
+      }
+    };
+  }, [audioElement]);
+
+  const handlePlayPreview = async (vId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (audioElement) {
+      audioElement.pause();
+      setPlayingId(null);
+    }
+    if (playingId === vId) {
+      setPlayingId(null);
+      return;
+    }
+    setPreviewLoadingId(vId);
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: "I have hidden Your word in my heart that I might not sin against You.",
+          voiceId: vId,
+          speed: 0.85
+        })
+      });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      setAudioElement(audio);
+      setPlayingId(vId);
+      setPreviewLoadingId(null);
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        setPlayingId(null);
+      };
+      audio.play().catch(() => setPlayingId(null));
+    } catch {
+      setPreviewLoadingId(null);
+    }
+  };
+
+  const handleSaveModalVoice = () => {
+    if (selectedModalVoice) {
+      setVoiceId(selectedModalVoice);
+      setHasSelectedVoice(true);
+      if (audioElement) {
+        audioElement.pause();
+      }
+    }
+  };
 
   const toggleTheme = () => {
     const nextTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
@@ -287,6 +361,158 @@ export default function HomePage() {
           <span className="review-mode-arrow">›</span>
         </Link>
       </main>
+
+      {/* First-Time Voice Selection Modal */}
+      {!hasSelectedVoice && (
+        <div className="voice-modal-overlay" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(9, 13, 26, 0.85)',
+          backdropFilter: 'blur(12px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div className="voice-modal-box" style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-glow)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '32px',
+            maxWidth: '540px',
+            width: '100%',
+            boxShadow: 'var(--shadow-gold)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '24px',
+            animation: 'slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                <img src="/logo.png" alt="Inscribed Logo" style={{ height: '48px', width: 'auto' }} />
+              </div>
+              <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                Welcome to Inscribed
+              </h2>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                To write Scripture on the tablet of your heart, choose the voice you'd like to listen to. Listen to each preview below and select your favorite.
+              </p>
+            </div>
+
+            <div style={{
+              background: 'rgba(var(--gold-rgb), 0.04)',
+              border: '1px dashed var(--border-glow)',
+              borderRadius: 'var(--radius-md)',
+              padding: '14px 16px',
+              textAlign: 'center'
+            }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Preview Passage:</span>
+              <p style={{ fontStyle: 'italic', fontSize: '0.95rem', color: 'var(--gold)', marginTop: '4px', fontWeight: 500 }}>
+                "I have hidden Your word in my heart that I might not sin against You." <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>(Psalm 119:11)</span>
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {PRESET_VOICES.map((v) => (
+                <div
+                  key={v.voice_id}
+                  onClick={() => setSelectedModalVoice(v.voice_id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '14px 18px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '2px solid ' + (selectedModalVoice === v.voice_id ? 'var(--gold)' : 'var(--border)'),
+                    background: selectedModalVoice === v.voice_id ? 'var(--gold-dim)' : 'rgba(255, 255, 255, 0.01)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: selectedModalVoice === v.voice_id ? 'var(--shadow-glow)' : 'none'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                      width: '18px',
+                      height: '18px',
+                      borderRadius: '50%',
+                      border: '2px solid ' + (selectedModalVoice === v.voice_id ? 'var(--gold)' : 'var(--text-muted)'),
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {selectedModalVoice === v.voice_id && (
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--gold)' }}></div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>{v.name}</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{[v.gender, v.accent, v.age].filter(Boolean).join(' · ')}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={(e) => handlePlayPreview(v.voice_id, e)}
+                    className="preview-play-btn"
+                    title="Listen to preview"
+                    aria-label={`Listen to preview of ${v.name}`}
+                    style={{
+                      padding: '8px',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: playingId === v.voice_id ? 'var(--gold)' : 'rgba(var(--gold-rgb), 0.08)',
+                      color: playingId === v.voice_id ? '#fff' : 'var(--gold)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      width: '32px',
+                      height: '32px',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {previewLoadingId === v.voice_id ? (
+                      <span className="spinner-small" style={{ width: '14px', height: '14px' }}></span>
+                    ) : playingId === v.voice_id ? (
+                      <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                        <rect x="6" y="6" width="12" height="12" rx="1" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={handleSaveModalVoice}
+              disabled={!selectedModalVoice}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: 'var(--radius-md)',
+                background: selectedModalVoice ? 'var(--gold)' : 'var(--text-muted)',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: '0.95rem',
+                cursor: selectedModalVoice ? 'pointer' : 'not-allowed',
+                border: 'none',
+                boxShadow: selectedModalVoice ? '0 4px 12px rgba(var(--gold-rgb), 0.3)' : 'none',
+                transition: 'all 0.2s ease',
+                textAlign: 'center'
+              }}
+            >
+              Confirm and Get Started
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
