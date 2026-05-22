@@ -28,6 +28,14 @@ export default function SettingsPage() {
   const [voiceLoading, setVoiceLoading] = useState(false);
   const [voiceError, setVoiceError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [serverHasKey, setServerHasKey] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/config')
+      .then((res) => res.json())
+      .then((data) => setServerHasKey(data.hasApiKey))
+      .catch(() => {});
+  }, []);
 
   const handleSave = () => {
     setElevenLabsApiKey(apiKeyInput);
@@ -37,7 +45,7 @@ export default function SettingsPage() {
 
   const loadVoices = async () => {
     const key = apiKeyInput || elevenLabsApiKey;
-    if (!key) { setVoiceError('Enter your API key first.'); return; }
+    if (!key && !serverHasKey) { setVoiceError('Enter your API key first.'); return; }
     setVoiceLoading(true);
     setVoiceError('');
     try {
@@ -82,13 +90,14 @@ export default function SettingsPage() {
               className="settings-input"
               value={apiKeyInput}
               onChange={(e) => setApiKeyInput(e.target.value)}
-              placeholder="sk-..."
+              placeholder={serverHasKey ? "Optional (Configured on server)" : "sk-..."}
               autoComplete="off"
             />
             <button id="save-key-btn" className="save-btn" onClick={handleSave}>
               {saved ? '✓ Saved' : 'Save'}
             </button>
           </div>
+          {serverHasKey && <p className="server-key-note" style={{ color: 'var(--gold)', fontSize: '0.85rem', marginTop: '0.4rem', fontWeight: 500 }}>✓ ElevenLabs API Key is configured on the server.</p>}
           <button
             id="load-voices-btn"
             className="load-voices-btn"

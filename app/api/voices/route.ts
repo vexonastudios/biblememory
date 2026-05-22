@@ -3,14 +3,15 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const apiKey = searchParams.get('apiKey');
+  const apiKeyToUse = apiKey || process.env.ELEVENLABS_API_KEY;
 
-  if (!apiKey) {
+  if (!apiKeyToUse) {
     return NextResponse.json({ error: 'Missing apiKey' }, { status: 400 });
   }
 
   try {
     const res = await fetch('https://api.elevenlabs.io/v1/voices', {
-      headers: { 'xi-api-key': apiKey },
+      headers: { 'xi-api-key': apiKeyToUse },
       next: { revalidate: 300 }, // cache 5 min
     });
 

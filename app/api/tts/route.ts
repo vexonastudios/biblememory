@@ -35,8 +35,9 @@ export async function POST(request: NextRequest) {
   } = body;
 
   const content = ssml || text;
+  const apiKeyToUse = apiKey || process.env.ELEVENLABS_API_KEY;
 
-  if (!content || !voiceId || !apiKey) {
+  if (!content || !voiceId || !apiKeyToUse) {
     return NextResponse.json({ error: 'Missing content (ssml/text), voiceId, or apiKey' }, { status: 400 });
   }
 
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
     const res = await fetch(url, {
       method: 'POST',
       headers: {
-        'xi-api-key': apiKey,
+        'xi-api-key': apiKeyToUse,
         'Content-Type': 'application/json',
         Accept: 'audio/mpeg',
       },

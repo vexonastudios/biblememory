@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSessionStore } from '@/lib/store/sessionStore';
 import { useSettingsStore } from '@/lib/store/settingsStore';
@@ -30,6 +30,15 @@ export default function SessionPage() {
     elevenLabsApiKey, voiceId, repeatCount, matchThreshold,
     pauseBetweenMs, readingSpeed,
   } = useSettingsStore();
+
+  const [serverHasKey, setServerHasKey] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/config')
+      .then((res) => res.json())
+      .then((data) => setServerHasKey(data.hasApiKey))
+      .catch(() => {});
+  }, []);
 
   // Refs to avoid stale closures in callbacks
   const phaseRef = useRef(phase);
@@ -235,7 +244,7 @@ export default function SessionPage() {
             <div className="idle-info">
               <p>Each phrase is read <strong>{repeatCount}×</strong> with a <strong>{(pauseBetweenMs / 1000).toFixed(1)}s</strong> breath between repeats.</p>
               <p>Then the mic opens — speak the text back to advance.</p>
-              {!elevenLabsApiKey && (
+              {!elevenLabsApiKey && !serverHasKey && (
                 <p className="idle-warning">
                   ⚠ No ElevenLabs API key found.{' '}
                   <Link href="/settings" className="warning-link">Add one in Settings</Link>
