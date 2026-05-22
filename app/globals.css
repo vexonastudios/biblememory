@@ -1454,6 +1454,64 @@ input, select, textarea { font-family: inherit; }
   backdrop-filter: blur(8px);
 }
 
+/* Hint-choice screen */
+.hint-choice-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.hint-verse-preview {
+  background: rgba(var(--gold-rgb),0.04);
+  border: 1px solid rgba(var(--gold-rgb),0.20);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-bottom: 4px;
+}
+
+.hint-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 20px 0 20px;
+}
+
+.hint-choice-btns {
+  display: flex;
+  gap: 12px;
+}
+
+.hint-choice-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 12px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border);
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.hint-choice-btn:hover {
+  border-color: var(--gold);
+  background: rgba(var(--gold-rgb), 0.06);
+}
+
+.hint-choice-off:hover { border-color: rgba(167,139,250,0.6); background: rgba(167,139,250,0.06); }
+.hint-choice-on:hover  { border-color: var(--gold); background: rgba(var(--gold-rgb),0.06); }
+
+.hint-choice-icon { font-size: 28px; }
+.hint-choice-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.hint-choice-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 .card-heading {
   font-size: 17px;
   font-weight: 700;
@@ -1583,6 +1641,13 @@ input, select, textarea { font-family: inherit; }
 /* Word states */
 .review-word-pending {
   color: rgba(240,242,248,0.35);
+}
+
+/* Hint word — first letter visible, styled differently from full pending words */
+.review-word-hint {
+  color: rgba(var(--gold-rgb), 0.70);
+  font-style: italic;
+  letter-spacing: 0.04em;
 }
 
 .review-word-current {

@@ -12,7 +12,8 @@ import {
 import { playErrorBeep, playWordTick, playCompletionFanfare } from '@/lib/beep';
 import { startListening, stopListening } from '@/lib/speechRecognizer';
 
-type PageState = 'setup' | 'listening' | 'error' | 'complete';
+type PageState = 'setup' | 'hint-choice' | 'listening' | 'error' | 'complete';
+type HintsMode = 'on' | 'off';
 
 const QUICK_REFS = [
   'John 3:16', 'Psalm 23:1', 'Romans 8:28', 'Philippians 4:13',
@@ -37,6 +38,7 @@ function ReviewPageInner() {
   const [reviewState, setReviewState] = useState<ReviewState | null>(null);
   const [liveTranscript, setLiveTranscript] = useState('');
   const [errorWord, setErrorWord] = useState<string | null>(null);
+  const [hintsMode, setHintsMode] = useState<HintsMode>('off');
 
   // Track how many transcript words we've already processed
   const processedCountRef = useRef(0);
@@ -47,6 +49,7 @@ function ReviewPageInner() {
   useEffect(() => { pageStateRef.current = pageState; }, [pageState]);
 
   // Auto-fetch if launched from library with ?ref=&translation= params
+  // Then auto-advance to hint-choice screen (skipping the 'Choose Verse' UI)
   useEffect(() => {
     const urlRef = searchParams.get('ref');
     const urlTrans = searchParams.get('translation') as 'BSB' | 'KJV' | null;
@@ -55,7 +58,7 @@ function ReviewPageInner() {
       setRef(urlRef);
       setTranslation(t);
       setFromLibrary(true);
-      fetchVerse(urlRef, t);
+      fetchVerseForLibrary(urlRef, t);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -69,6 +72,25 @@ function ReviewPageInner() {
       const data = await res.json();
       setVerseText(data.text);
       setRef(r);
+    } catch (e: any) {
+      setFetchError(e.message);
+    } finally {
+      setFetchLoading(false);
+    }
+  };
+
+  // Variant that also advances to hint-choice once the verse is loaded
+  const fetchVerseForLibrary = async (r: string, t: 'BSB' | 'KJV') => {
+    setFetchLoading(true);
+    setFetchError('');
+    setVerseText('');
+    try {
+      const res = await fetch(`/api/bible?ref=${encodeURIComponent(r)}&translation=${t}`);
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+      const data = await res.json();
+      setVerseText(data.text);
+      setRef(r);
+      setPageState('hint-choice');
     } catch (e: any) {
       setFetchError(e.message);
     } finally {
@@ -188,10 +210,16 @@ function ReviewPageInner() {
 
   const handleReset = () => {
     stopListening();
-    setPageState('setup');
+    // If we came from library, go back to hint-choice (not the verse-search setup)
+    setPageState(fromLibrary ? 'hint-choice' : 'setup');
     setReviewState(null);
     setLiveTranscript('');
     setErrorWord(null);
+  };
+
+  const handleStartWithHints = (mode: HintsMode) => {
+    setHintsMode(mode);
+    startReview();
   };
 
   // Cleanup on unmount
@@ -219,7 +247,7 @@ function ReviewPageInner() {
         <Link href="/settings" className="settings-link" style={{ fontSize: 13 }}>Settings</Link>
       </header>
 
-      {/* Setup */}
+      {/* Setup — only shown when not coming from library */}
       {pageState === 'setup' && (
         <div className="review-setup">
           <div className="review-card">
@@ -282,31 +310,56 @@ function ReviewPageInner() {
           </div>
 
           {verseText && (
-            <div className="review-how">
-              <div className="how-step"><span className="how-num">1</span><span className="how-txt">Speak the verse aloud</span></div>
-              <div className="how-arrow">→</div>
-              <div className="how-step"><span className="how-num">2</span><span className="how-txt">Each word tracked live</span></div>
-              <div className="how-arrow">→</div>
-              <div className="how-step"><span className="how-num">3</span><span className="how-txt">Wrong word = beep + stop</span></div>
-              <div className="how-arrow">→</div>
-              <div className="how-step"><span className="how-num">4</span><span className="how-txt">Correct it to continue</span></div>
-            </div>
-          )}
-
-          {verseText && (
             <button
               id="start-review-btn"
               className="start-btn"
-              onClick={startReview}
+              onClick={() => setPageState('hint-choice')}
             >
               <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
                 <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4z"/>
                 <path d="M19 10a7 7 0 0 1-14 0H3a9 9 0 0 0 18 0h-2z"/>
                 <path d="M11 20h2v3h-2z"/>
               </svg>
-              Start Reciting
+              Continue
             </button>
           )}
+        </div>
+      )}
+
+      {/* Hint choice — shown before reciting, whether from library or manual search */}
+      {pageState === 'hint-choice' && (
+        <div className="review-setup">
+          <div className="review-card hint-choice-card">
+            <div className="hint-verse-preview">
+              <p className="idle-preview-text">{verseText}</p>
+              <span className="idle-ref">{ref} · {translation}</span>
+            </div>
+            <div className="hint-divider" />
+            <h2 className="card-heading" style={{ marginBottom: 6 }}>Do you want hints?</h2>
+            <p className="section-desc" style={{ marginBottom: 24 }}>
+              Hints show the first letter of every third word so you have something to jog your memory as you quote.
+            </p>
+            <div className="hint-choice-btns">
+              <button
+                id="hints-off-btn"
+                className="hint-choice-btn hint-choice-off"
+                onClick={() => handleStartWithHints('off')}
+              >
+                <span className="hint-choice-icon">🧠</span>
+                <span className="hint-choice-label">No hints</span>
+                <span className="hint-choice-sub">Pure recall</span>
+              </button>
+              <button
+                id="hints-on-btn"
+                className="hint-choice-btn hint-choice-on"
+                onClick={() => handleStartWithHints('on')}
+              >
+                <span className="hint-choice-icon">💡</span>
+                <span className="hint-choice-label">Show hints</span>
+                <span className="hint-choice-sub">First letters visible</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -338,14 +391,21 @@ function ReviewPageInner() {
 
           {/* Word display — the whole passage with word-by-word coloring */}
           <div className="review-word-display">
-            {reviewState.words.map((word: TrackedWord, i: number) => (
+            {reviewState.words.map((word: TrackedWord, i: number) => {
+              // In hints mode: pending words at every 3rd position show first letter + dashes
+              const isHintWord = hintsMode === 'on' && word.status === 'pending' && (i + 1) % 3 === 0;
+              const displayText = isHintWord
+                ? word.original[0] + '\u2009' + '_ '.repeat(Math.max(word.original.length - 2, 1)).trim()
+                : word.original;
+              return (
               <span
                 key={i}
-                className={`review-word review-word-${word.status}`}
+                className={`review-word review-word-${word.status}${isHintWord ? ' review-word-hint' : ''}`}
               >
-                {word.original}{' '}
+                {displayText}{' '}
               </span>
-            ))}
+              );
+            })}
           </div>
 
           {/* Live transcript */}
