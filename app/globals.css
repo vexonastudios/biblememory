@@ -785,6 +785,37 @@ input, select, textarea { font-family: inherit; }
 
 .phrase-separator { color: rgba(240,242,248,0.35); }
 
+/* Listening phase — hide the text so user must recall from memory */
+.phrase-hidden {
+  filter: blur(8px);
+  opacity: 0.3;
+  user-select: none;
+  pointer-events: none;
+  transition: filter 0.3s ease, opacity 0.3s ease;
+}
+
+.phrase-hidden-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  margin-top: 8px;
+  letter-spacing: 0.02em;
+}
+
+/* Coaching hint after repeated fails */
+.fail-hint {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-align: center;
+  background: rgba(var(--gold-rgb), 0.06);
+  border: 1px solid rgba(var(--gold-rgb), 0.15);
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  margin-top: 4px;
+  font-style: italic;
+}
+
 /* Reading dots */
 .reading-indicator {
   display: flex;

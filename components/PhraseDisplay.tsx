@@ -17,7 +17,7 @@ export default function PhraseDisplay({ phrases, currentStep, phase }: Props) {
 
   return (
     <div className={`phrase-display ${isReading ? 'reading' : ''} ${isListening ? 'listening' : ''} ${isPassed ? 'passed' : ''}`}>
-      <div className="phrase-chunks">
+      <div className={`phrase-chunks ${isListening ? 'phrase-hidden' : ''}`}>
         {phrases.slice(0, currentStep + 1).map((phrase, i) => {
           const isNew = i === currentStep;
           return (
@@ -33,6 +33,10 @@ export default function PhraseDisplay({ phrases, currentStep, phase }: Props) {
         })}
       </div>
 
+      {isListening && (
+        <p className="phrase-hidden-hint">Text hidden — recall it from memory</p>
+      )}
+
       {isReading && (
         <div className="reading-indicator">
           <span className="reading-dot" />
@@ -43,3 +47,4 @@ export default function PhraseDisplay({ phrases, currentStep, phase }: Props) {
     </div>
   );
 }
+

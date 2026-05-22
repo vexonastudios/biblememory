@@ -26,6 +26,7 @@ export interface SessionState {
   loopIndex: number;          // which repeat we are on (0..repeatCount-1)
   transcript: string;         // live mic transcript
   matchScore: number;         // 0–1
+  failStreak: number;          // consecutive fails on current step
 
   // History
   completedVerses: string[];  // references of fully memorised verses
@@ -37,6 +38,9 @@ export interface SessionState {
   setTranscript: (t: string) => void;
   setMatchScore: (s: number) => void;
   advanceStep: () => void;
+  stepBack: () => void;
+  incrementFailStreak: () => void;
+  resetFailStreak: () => void;
   resetSession: () => void;
   markComplete: () => void;
 }
@@ -51,6 +55,7 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   loopIndex: 0,
   transcript: '',
   matchScore: 0,
+  failStreak: 0,
   completedVerses: [],
 
   setVerse: (reference, text, phrases, translation) =>
@@ -64,6 +69,7 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
       loopIndex: 0,
       transcript: '',
       matchScore: 0,
+      failStreak: 0,
     }),
 
   setPhase: (phase) => set({ phase }),
@@ -74,11 +80,20 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   advanceStep: () => {
     const { currentStep, phrases } = get();
     if (currentStep < phrases.length - 1) {
-      set({ currentStep: currentStep + 1, loopIndex: 0, transcript: '', matchScore: 0, phase: 'reading' });
+      set({ currentStep: currentStep + 1, loopIndex: 0, transcript: '', matchScore: 0, failStreak: 0, phase: 'reading' });
     } else {
       set({ phase: 'complete' });
     }
   },
+
+  stepBack: () => {
+    const { currentStep } = get();
+    const target = Math.max(0, currentStep - 1);
+    set({ currentStep: target, loopIndex: 0, transcript: '', matchScore: 0, failStreak: 0, phase: 'reading' });
+  },
+
+  incrementFailStreak: () => set((s) => ({ failStreak: s.failStreak + 1 })),
+  resetFailStreak: () => set({ failStreak: 0 }),
 
   resetSession: () =>
     set({
@@ -90,6 +105,7 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
       loopIndex: 0,
       transcript: '',
       matchScore: 0,
+      failStreak: 0,
     }),
 
   markComplete: () => {

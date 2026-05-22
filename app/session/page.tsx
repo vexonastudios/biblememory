@@ -6,7 +6,6 @@ import { useSessionStore } from '@/lib/store/sessionStore';
 import { useSettingsStore } from '@/lib/store/settingsStore';
 import { useLibraryStore } from '@/lib/store/libraryStore';
 import { buildAccumulatedPhrases } from '@/lib/phraseParser';
-import { buildRepeatedSSML } from '@/lib/ssmlBuilder';
 import { startListening, stopListening, fuzzyMatch } from '@/lib/speechRecognizer';
 import PhraseDisplay from '@/components/PhraseDisplay';
 import MicButton from '@/components/MicButton';
@@ -21,7 +20,7 @@ export default function SessionPage() {
     phase, loopIndex,
     transcript, matchScore,
     setPhase, setLoopIndex, setTranscript, setMatchScore,
-    advanceStep, resetSession, markComplete,
+    advanceStep, stepBack, resetSession, markComplete,
   } = useSessionStore();
 
   const { addVerse } = useLibraryStore();
@@ -32,6 +31,7 @@ export default function SessionPage() {
   } = useSettingsStore();
 
   const [serverHasKey, setServerHasKey] = useState(false);
+  const [failCount, setFailCount] = useState(0);
 
   useEffect(() => {
     fetch('/api/config')
@@ -40,7 +40,6 @@ export default function SessionPage() {
       .catch(() => {});
   }, []);
 
-  // Refs to avoid stale closures in callbacks
   const phaseRef = useRef(phase);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -48,171 +47,115 @@ export default function SessionPage() {
 
   const accumulated = buildAccumulatedPhrases(phrases);
 
-  // Redirect if no verse loaded
   useEffect(() => {
     if (!phrases.length) router.replace('/');
   }, [phrases, router]);
 
-  // ─── TTS playback ────────────────────────────────────────────────────────────
-  // We now send ONE request per step containing all N repetitions via SSML.
-  // ElevenLabs reads the phrase, pauses (SSML <break>), reads again, pauses, etc.
-  // This is far more natural than our previous approach of N separate API calls.
-
   const playTTS = useCallback(
-    async (phraseText: string): Promise<void> => {
+    async (phraseText: string, iteration: number): Promise<boolean> => {
       return new Promise(async (resolve) => {
         try {
-          if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current = null;
-          }
-
-          // Build SSML with all repeats + pacing breaks in a single string
-          const ssml = buildRepeatedSSML(phraseText, repeatCount, {
-            pauseBetweenMs,
-            speed: readingSpeed,
-            naturalBreaths: true,
-          });
-
+          if (audioRef.current) { audioRef.current.pause(); }
+          
           const res = await fetch('/api/tts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              ssml,
+              text: phraseText,
               voiceId,
               apiKey: elevenLabsApiKey,
               speed: readingSpeed,
             }),
           });
 
-          if (!res.ok) {
-            console.warn('TTS failed, continuing anyway');
-            resolve();
-            return;
-          }
+          if (!res.ok) { resolve(false); return; }
 
           const blob = await res.blob();
           const url = URL.createObjectURL(blob);
           const audio = new Audio(url);
           audioRef.current = audio;
 
-          audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
-          audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
-          audio.play().catch(() => resolve());
-        } catch {
-          resolve();
-        }
+          audio.onended = () => { URL.revokeObjectURL(url); resolve(true); };
+          audio.onerror = () => { URL.revokeObjectURL(url); resolve(false); };
+          audio.play().catch(() => resolve(false));
+        } catch { resolve(false); }
       });
     },
-    [voiceId, elevenLabsApiKey, repeatCount, pauseBetweenMs, readingSpeed]
+    [voiceId, elevenLabsApiKey, readingSpeed]
   );
-
-  // ─── Speech recognition ───────────────────────────────────────────────────────
 
   const openMic = useCallback(
     (targetText: string) => {
       setTranscript('');
       setMatchScore(0);
-
       startListening({
         onResult: ({ transcript: t }) => {
           setTranscript(t);
           const score = fuzzyMatch(t, targetText);
           setMatchScore(score);
-
           if (score >= matchThreshold) {
             stopListening();
+            setFailCount(0);
             setPhase('passed');
             setTimeout(() => advanceStep(), 1200);
           }
         },
         onEnd: () => {
-          if (phaseRef.current === 'listening') setPhase('failed');
+          if (phaseRef.current === 'listening') {
+            const nextFails = failCount + 1;
+            setFailCount(nextFails);
+            setPhase('failed');
+            if (nextFails >= 3) {
+              setTimeout(() => { setFailCount(0); stepBack(); }, 1000);
+            }
+          }
         },
         onError: () => {
-          if (phaseRef.current === 'listening') setPhase('failed');
+          if (phaseRef.current === 'listening') {
+            setPhase('failed');
+          }
         },
       });
     },
-    [matchThreshold, setTranscript, setMatchScore, setPhase, advanceStep]
+    [matchThreshold, setTranscript, setMatchScore, setPhase, advanceStep, stepBack, failCount]
   );
-
-  // ─── Main session loop ────────────────────────────────────────────────────────
-  // Now: ONE TTS call that contains all repeats (ElevenLabs handles the pacing).
-  // Then: brief pre-mic pause (300ms) so user isn't surprised by the mic opening.
 
   const runLoop = useCallback(
     async (step: number) => {
-      if (!phrases[step]) return;
       const text = accumulated[step];
-
-      if (phaseRef.current !== 'reading') return;
-
-      // Show loop counter as "loading" while TTS generates
-      setLoopIndex(1);
-
-      // Single call — all repeats inside the SSML
-      await playTTS(text);
-
-      // Brief breath before mic opens
-      await new Promise((r) => setTimeout(r, 400));
-
+      for (let i = 1; i <= repeatCount; i++) {
+        if (phaseRef.current !== 'reading') return;
+        setLoopIndex(i);
+        await playTTS(text, i);
+        if (i < repeatCount) await new Promise((r) => setTimeout(r, pauseBetweenMs));
+      }
       if (phaseRef.current === 'reading') {
         setPhase('listening');
         openMic(text);
       }
     },
-    [phrases, accumulated, setLoopIndex, playTTS, setPhase, openMic]
+    [accumulated, repeatCount, pauseBetweenMs, setLoopIndex, playTTS, setPhase, openMic]
   );
 
   useEffect(() => {
-    if (phase === 'reading' && phrases.length > 0) {
-      runLoop(currentStep);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, currentStep]);
+    if (phase === 'reading' && phrases.length > 0) runLoop(currentStep);
+  }, [phase, currentStep, runLoop, phrases.length]);
 
   useEffect(() => {
     if (phase === 'failed') stopListening();
   }, [phase]);
 
-  useEffect(() => {
-    return () => {
-      stopListening();
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    };
-  }, []);
-
-  // Auto-save to library + mark complete when phase becomes 'complete'
-  useEffect(() => {
-    if (phase === 'complete') {
-      markComplete();
-      // Add to spaced repetition library — triggers 1-day review schedule
-      if (reference && fullVerseText) {
-        addVerse(reference, fullVerseText, (useSettingsStore.getState().translation) as 'BSB' | 'KJV');
-      }
-    }
-  }, [phase, markComplete, addVerse, reference, fullVerseText]);
-
   const handleStart = () => setPhase('reading');
-  const handleRetry = () => { setPhase('reading'); };
-  const handleRestart = () => {
-    stopListening();
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    resetSession();
-    router.replace('/');
-  };
-  const handleSkip = () => {
-    stopListening();
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    advanceStep();
-  };
+  const handleRetry = () => { setPhase('listening'); openMic(accumulated[currentStep]); };
+  const handleRestart = () => { stopListening(); resetSession(); router.replace('/'); };
+  const handleSkip = () => { stopListening(); setFailCount(0); advanceStep(); };
 
   if (!phrases.length) return null;
 
   const stepLabel = `${currentStep + 1} / ${phrases.length}`;
   const isComplete = phase === 'complete';
   const progressPercent = isComplete ? 100 : (currentStep / phrases.length) * 100;
+  const isSteppingBack = failCount >= 3 && phase === 'failed' && currentStep > 0;
 
   return (
     <div className="session-page">
@@ -243,7 +186,7 @@ export default function SessionPage() {
             </div>
             <div className="idle-info">
               <p>Each phrase is read <strong>{repeatCount}×</strong> with a <strong>{(pauseBetweenMs / 1000).toFixed(1)}s</strong> breath between repeats.</p>
-              <p>Then the mic opens — speak the text back to advance.</p>
+              <p>Then the mic opens — say everything you've learned so far to advance.</p>
               {!elevenLabsApiKey && !serverHasKey && (
                 <p className="idle-warning">
                   ⚠ No ElevenLabs API key found.{' '}
@@ -263,9 +206,10 @@ export default function SessionPage() {
               <ProgressRing current={loopIndex} total={repeatCount} />
               <div className="phase-label">
                 {phase === 'reading'   && <span className="phase-reading">🔊 Listen…</span>}
-                {phase === 'listening' && <span className="phase-listening">🎙 Your turn</span>}
+                {phase === 'listening' && <span className="phase-listening">🎙 Say it from the beginning</span>}
                 {phase === 'passed'    && <span className="phase-passed">✓ Passed!</span>}
-                {phase === 'failed'    && <span className="phase-failed">Try again</span>}
+                {phase === 'failed'    && !isSteppingBack && <span className="phase-failed">Try again</span>}
+                {isSteppingBack        && <span className="phase-failed">Stepping back to review…</span>}
               </div>
             </div>
 
@@ -278,11 +222,19 @@ export default function SessionPage() {
               phase={phase}
             />
 
+            {phase === 'failed' && failCount >= 2 && !isSteppingBack && (
+              <p className="fail-hint">
+                {failCount === 2
+                  ? 'Tip: say all the phrases from the very beginning'
+                  : 'One more miss and we\'ll step back to re-learn the prior phrase'}
+              </p>
+            )}
+
             <div className="session-controls">
-              {phase === 'failed' && (
+              {phase === 'failed' && !isSteppingBack && (
                 <button id="retry-btn" className="ctrl-btn retry" onClick={handleRetry}>↻ Retry</button>
               )}
-              {(phase === 'reading' || phase === 'listening' || phase === 'failed') && (
+              {(phase === 'reading' || phase === 'listening' || phase === 'failed') && !isSteppingBack && (
                 <button id="skip-btn" className="ctrl-btn skip" onClick={handleSkip}>Skip →</button>
               )}
             </div>
