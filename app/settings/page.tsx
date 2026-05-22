@@ -199,6 +199,7 @@ export default function SettingsPage() {
                       cursor: 'pointer',
                       width: '24px',
                       height: '24px',
+                      flexShrink: 0,
                       transition: 'all 0.15s ease'
                     }}
                   >
@@ -254,6 +255,7 @@ export default function SettingsPage() {
                           cursor: 'pointer',
                           width: '24px',
                           height: '24px',
+                          flexShrink: 0,
                           transition: 'all 0.15s ease'
                         }}
                       >
