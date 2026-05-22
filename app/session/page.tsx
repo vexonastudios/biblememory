@@ -61,6 +61,8 @@ export default function SessionPage() {
   const loopTokenRef = useRef(0);
   // Stable ref to openMic so runLoop doesn't need it in its dep array
   const openMicRef = useRef<((text: string) => void) | null>(null);
+  // Track latest accumulated transcript so onEnd can do a final check
+  const latestTranscriptRef = useRef('');
 
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 
@@ -140,8 +142,10 @@ export default function SessionPage() {
     (targetText: string) => {
       setTranscript('');
       setMatchScore(0);
+      latestTranscriptRef.current = '';
       startListening({
         onResult: ({ transcript: t }) => {
+          latestTranscriptRef.current = t;
           setTranscript(t);
           const score = fuzzyMatch(t, targetText);
           setMatchScore(score);
@@ -153,14 +157,27 @@ export default function SessionPage() {
           }
         },
         onEnd: () => {
-          if (phaseRef.current === 'listening') {
-            const nextFails = failCount + 1;
-            setFailCount(nextFails);
-            setPhase('failed');
-            if (nextFails >= 3) {
-              setTimeout(() => { setFailCount(0); stepBack(); }, 1000);
+          if (phaseRef.current !== 'listening') return;
+          // Grace period — the browser may fire onEnd before the last few
+          // words are transcribed. Wait 500 ms, then do one final check
+          // against the accumulated transcript before declaring failure.
+          setTimeout(() => {
+            if (phaseRef.current !== 'listening') return; // already passed
+            const finalScore = fuzzyMatch(latestTranscriptRef.current, targetText);
+            if (finalScore >= matchThreshold) {
+              setFailCount(0);
+              setMatchScore(finalScore);
+              setPhase('passed');
+              setTimeout(() => advanceStep(), 1200);
+            } else {
+              const nextFails = failCount + 1;
+              setFailCount(nextFails);
+              setPhase('failed');
+              if (nextFails >= 3) {
+                setTimeout(() => { setFailCount(0); stepBack(); }, 1000);
+              }
             }
-          }
+          }, 500);
         },
         onError: () => {
           if (phaseRef.current === 'listening') {
@@ -178,6 +195,7 @@ export default function SessionPage() {
   const runLoop = useCallback(
     async (step: number, token: number) => {
       const text = accumulated[step];
+      let lastDurationMs = 0;
 
       for (let i = 1; i <= repeatCount; i++) {
         // Bail if cancelled or phase changed
@@ -185,6 +203,7 @@ export default function SessionPage() {
         setLoopIndex(i);
         const { ok, durationMs } = await playOnce(text, token);
         if (!ok) return;
+        lastDurationMs = durationMs;
 
         // Pause between reads (but not after the final one)
         if (i < repeatCount) {
@@ -196,8 +215,12 @@ export default function SessionPage() {
         }
       }
 
-      // Brief breath before mic, then check we're still in reading phase
-      await new Promise<void>((r) => setTimeout(r, 600));
+      // After the LAST read, give the user time to repeat it back before the mic opens.
+      // Echo mode: wait the full clip duration so they can say it back.
+      // Fixed mode: brief 600ms breath.
+      if (loopTokenRef.current !== token || phaseRef.current !== 'reading') return;
+      const finalPauseMs = pauseMode === 'echo' ? Math.max(lastDurationMs, 600) : 600;
+      await new Promise<void>((r) => setTimeout(r, finalPauseMs));
       if (loopTokenRef.current !== token || phaseRef.current !== 'reading') return;
 
       setPhase('listening');

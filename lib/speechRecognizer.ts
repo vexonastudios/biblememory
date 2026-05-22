@@ -43,14 +43,28 @@ export function startListening(options: RecognizerOptions): void {
   recognition!.maxAlternatives = 1;
 
   recognition!.onresult = (event: any) => {
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const result = event.results[i];
-      options.onResult({
-        transcript: result[0].transcript.trim(),
-        isFinal: result.isFinal,
-        confidence: result[0].confidence,
-      });
+    // Accumulate ALL results — finalized segments + latest interim — into
+    // one full transcript. Without this, each segment is checked individually
+    // and a perfectly spoken verse can fail because no single segment covers
+    // the full target text.
+    let fullTranscript = '';
+    let latestConfidence = 0;
+    let allFinal = true;
+
+    for (let i = 0; i < event.results.length; i++) {
+      fullTranscript += event.results[i][0].transcript;
+      if (!event.results[i].isFinal) allFinal = false;
     }
+
+    // Confidence from the most recent result
+    const lastResult = event.results[event.results.length - 1];
+    latestConfidence = lastResult[0].confidence;
+
+    options.onResult({
+      transcript: fullTranscript.trim(),
+      isFinal: allFinal,
+      confidence: latestConfidence,
+    });
   };
 
   recognition!.onend = () => {
