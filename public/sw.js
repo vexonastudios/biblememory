@@ -12,7 +12,7 @@
  *  - TTS API: Cache-first (audio is content-addressed, never stale)
  */
 
-const CACHE_NAME = 'inscribed-BUILD_TS';
+const CACHE_NAME = 'inscribed-1779412734811';
 const OFFLINE_URL = '/';
 
 // App shell — static assets to pre-cache on install
