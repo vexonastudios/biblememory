@@ -42,6 +42,10 @@ export default function SessionPage() {
 
   const phaseRef = useRef(phase);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Cancellation token: bump this number to cancel any in-progress loop
+  const loopTokenRef = useRef(0);
+  // Stable ref to openMic so runLoop doesn't need it in its dep array
+  const openMicRef = useRef<((text: string) => void) | null>(null);
 
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 
@@ -51,34 +55,43 @@ export default function SessionPage() {
     if (!phrases.length) router.replace('/');
   }, [phrases, router]);
 
-  const playTTS = useCallback(
-    async (phraseText: string, iteration: number): Promise<boolean> => {
-      return new Promise(async (resolve) => {
-        try {
-          if (audioRef.current) { audioRef.current.pause(); }
-          
-          const res = await fetch('/api/tts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              text: phraseText,
-              voiceId,
-              apiKey: elevenLabsApiKey,
-              speed: readingSpeed,
-            }),
-          });
+  // Fetch and play a single reading of phraseText. Resolves when audio ends.
+  const playOnce = useCallback(
+    (phraseText: string, token: number): Promise<boolean> => {
+      return new Promise((resolve) => {
+        // Stop anything still playing
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
+        }
 
-          if (!res.ok) { resolve(false); return; }
-
-          const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          const audio = new Audio(url);
-          audioRef.current = audio;
-
-          audio.onended = () => { URL.revokeObjectURL(url); resolve(true); };
-          audio.onerror = () => { URL.revokeObjectURL(url); resolve(false); };
-          audio.play().catch(() => resolve(false));
-        } catch { resolve(false); }
+        fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: phraseText,
+            voiceId,
+            apiKey: elevenLabsApiKey,
+            speed: readingSpeed,
+          }),
+        })
+          .then((res) => {
+            // If this loop was cancelled while fetching, bail
+            if (loopTokenRef.current !== token) { resolve(false); return; }
+            if (!res.ok) { resolve(false); return; }
+            return res.blob();
+          })
+          .then((blob) => {
+            if (!blob) return;
+            if (loopTokenRef.current !== token) { resolve(false); return; }
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            audioRef.current = audio;
+            audio.onended = () => { URL.revokeObjectURL(url); audioRef.current = null; resolve(true); };
+            audio.onerror = () => { URL.revokeObjectURL(url); audioRef.current = null; resolve(false); };
+            audio.play().catch(() => { URL.revokeObjectURL(url); resolve(false); });
+          })
+          .catch(() => resolve(false));
       });
     },
     [voiceId, elevenLabsApiKey, readingSpeed]
@@ -120,26 +133,44 @@ export default function SessionPage() {
     [matchThreshold, setTranscript, setMatchScore, setPhase, advanceStep, stepBack, failCount]
   );
 
+  // Keep openMicRef current so runLoop can call it without being in its dep array
+  useEffect(() => { openMicRef.current = openMic; }, [openMic]);
+
   const runLoop = useCallback(
-    async (step: number) => {
+    async (step: number, token: number) => {
       const text = accumulated[step];
+
       for (let i = 1; i <= repeatCount; i++) {
-        if (phaseRef.current !== 'reading') return;
+        // Bail if cancelled or phase changed
+        if (loopTokenRef.current !== token || phaseRef.current !== 'reading') return;
         setLoopIndex(i);
-        await playTTS(text, i);
-        if (i < repeatCount) await new Promise((r) => setTimeout(r, pauseBetweenMs));
+        await playOnce(text, token);
+
+        // Pause between reads (but not after the final one)
+        if (i < repeatCount) {
+          if (loopTokenRef.current !== token || phaseRef.current !== 'reading') return;
+          await new Promise<void>((r) => setTimeout(r, pauseBetweenMs));
+        }
       }
-      if (phaseRef.current === 'reading') {
-        setPhase('listening');
-        openMic(text);
-      }
+
+      // Brief breath before mic, then check we're still in reading phase
+      await new Promise<void>((r) => setTimeout(r, 600));
+      if (loopTokenRef.current !== token || phaseRef.current !== 'reading') return;
+
+      setPhase('listening');
+      openMicRef.current?.(text);
     },
-    [accumulated, repeatCount, pauseBetweenMs, setLoopIndex, playTTS, setPhase, openMic]
+    [accumulated, repeatCount, pauseBetweenMs, setLoopIndex, playOnce, setPhase]
   );
 
   useEffect(() => {
-    if (phase === 'reading' && phrases.length > 0) runLoop(currentStep);
-  }, [phase, currentStep, runLoop, phrases.length]);
+    if (phase === 'reading' && phrases.length > 0) {
+      // Bump token — any previous loop sees a stale token and exits
+      const token = ++loopTokenRef.current;
+      runLoop(currentStep, token);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, currentStep]); // Deliberately exclude runLoop — adding it causes re-fires mid-loop
 
   useEffect(() => {
     if (phase === 'failed') stopListening();
