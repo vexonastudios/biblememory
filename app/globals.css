@@ -1650,6 +1650,22 @@ input, select, textarea { font-family: inherit; }
   letter-spacing: 0.04em;
 }
 
+/* ── Weakness history from past sessions ──────────────────────────────────────
+   Subtle underline-based heat map — layered beneath word status colors.
+   Using border-bottom so they work on inline text without disrupting layout. */
+.word-weak-low {
+  border-bottom: 2px solid rgba(251, 191, 36, 0.55);   /* amber — 1–2 errors */
+  border-radius: 0;
+}
+.word-weak-mid {
+  border-bottom: 2px solid rgba(249, 115, 22, 0.70);   /* orange — 3–5 errors */
+  border-radius: 0;
+}
+.word-weak-high {
+  border-bottom: 2px solid rgba(239, 68, 68, 0.85);    /* red — 6+ errors */
+  border-radius: 0;
+}
+
 .review-word-current {
   color: var(--text-primary);
   background: rgba(var(--gold-rgb),0.10);
@@ -1709,6 +1725,29 @@ input, select, textarea { font-family: inherit; }
   border-color: var(--border);
   background: rgba(255,255,255,0.03);
 }
+
+/* Weakness legend */
+.weakness-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 28px 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.weakness-legend-label { margin-right: 4px; }
+.weakness-legend-txt   { margin-right: 8px; }
+
+.weakness-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.dot-low  { background: rgba(251, 191, 36, 0.70); }
+.dot-mid  { background: rgba(249, 115, 22, 0.80); }
+.dot-high { background: rgba(239, 68, 68, 0.90); }
 
 /* Review controls */
 .review-controls {

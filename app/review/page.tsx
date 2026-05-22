@@ -23,7 +23,7 @@ const QUICK_REFS = [
 function ReviewPageInner() {
   const searchParams = useSearchParams();
   const { translation: defaultTranslation } = useSettingsStore();
-  const { recordReview } = useLibraryStore();
+  const { recordReview, recordWordError, getWordErrors } = useLibraryStore();
 
   // ─── Setup state ────────────────────────────────────────────────────────────
   const [ref, setRef] = useState('');
@@ -133,6 +133,11 @@ function ReviewPageInner() {
             setErrorWord(newState.errorWord);
             setPageState('error');
             stopListening();
+            // Record this word's error in the persistent library history
+            if (newState.errorWord) {
+              const normalized = newState.errorWord.toLowerCase().replace(/[^a-z0-9']/g, '').trim();
+              if (normalized) recordWordError(ref, normalized);
+            }
             break;
           } else if (event === 'complete') {
             const accuracy = newState.correctCount / Math.max(newState.correctCount + newState.errorCount, 1);
@@ -192,6 +197,11 @@ function ReviewPageInner() {
             setErrorWord(newState.errorWord);
             setPageState('error');
             stopListening();
+            // Record this word's error in the persistent library history
+            if (newState.errorWord) {
+              const normalized = newState.errorWord.toLowerCase().replace(/[^a-z0-9']/g, '').trim();
+              if (normalized) recordWordError(ref, normalized);
+            }
             break;
           } else if (event === 'complete') {
             const accuracy = newState.correctCount / Math.max(newState.correctCount + newState.errorCount, 1);
@@ -389,18 +399,26 @@ function ReviewPageInner() {
             )}
           </div>
 
-          {/* Word display — the whole passage with word-by-word coloring */}
+          {/* Word display — the whole passage with word-by-word coloring + weakness history */}
           <div className="review-word-display">
             {reviewState.words.map((word: TrackedWord, i: number) => {
-              // In hints mode: pending words at every 3rd position show first letter + dashes
+              // Hints mode: every 3rd pending word shows first letter
               const isHintWord = hintsMode === 'on' && word.status === 'pending' && (i + 1) % 3 === 0;
               const displayText = isHintWord
                 ? word.original[0] + '\u2009' + '_ '.repeat(Math.max(word.original.length - 2, 1)).trim()
                 : word.original;
+              // Weakness history from past sessions
+              const wordErrors = getWordErrors(ref);
+              const errorCount = wordErrors[word.normalized] ?? 0;
+              const weaknessClass = errorCount >= 6 ? ' word-weak-high'
+                : errorCount >= 3 ? ' word-weak-mid'
+                : errorCount >= 1 ? ' word-weak-low'
+                : '';
               return (
               <span
                 key={i}
-                className={`review-word review-word-${word.status}${isHintWord ? ' review-word-hint' : ''}`}
+                className={`review-word review-word-${word.status}${isHintWord ? ' review-word-hint' : ''}${weaknessClass}`}
+                title={errorCount > 0 ? `Missed ${errorCount}× in past sessions` : undefined}
               >
                 {displayText}{' '}
               </span>
@@ -422,6 +440,16 @@ function ReviewPageInner() {
             <div className="stat-pill error-pill">✗ {reviewState.errorCount} errors</div>
             <div className="stat-pill neutral-pill">{totalWords - correctCount} remaining</div>
           </div>
+
+          {/* Weakness legend — only if this verse has error history */}
+          {Object.keys(getWordErrors(ref)).length > 0 && (
+            <div className="weakness-legend">
+              <span className="weakness-legend-label">Past trouble spots:</span>
+              <span className="weakness-dot dot-low" /> <span className="weakness-legend-txt">1–2×</span>
+              <span className="weakness-dot dot-mid" /> <span className="weakness-legend-txt">3–5×</span>
+              <span className="weakness-dot dot-high" /> <span className="weakness-legend-txt">6+×</span>
+            </div>
+          )}
 
           {/* Controls */}
           <div className="review-controls">

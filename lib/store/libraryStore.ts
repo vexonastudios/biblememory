@@ -16,6 +16,9 @@ interface LibraryState {
   /** Record the result of a Recite Mode review session. */
   recordReview: (reference: string, accuracy: number) => void;
 
+  /** Increment the error count for a specific word in a verse. */
+  recordWordError: (reference: string, normalizedWord: string) => void;
+
   /** Remove a verse from the library. */
   removeVerse: (reference: string) => void;
 
@@ -24,6 +27,9 @@ interface LibraryState {
 
   /** Verses due today, sorted by urgency */
   dueVerses: () => LibraryVerse[];
+
+  /** Get the wordErrors map for a verse (empty obj if not found or legacy) */
+  getWordErrors: (reference: string) => Record<string, number>;
 }
 
 export const useLibraryStore = create<LibraryState>()(
@@ -51,6 +57,22 @@ export const useLibraryStore = create<LibraryState>()(
         }));
       },
 
+      recordWordError: (reference, normalizedWord) => {
+        set((s) => ({
+          verses: s.verses.map((v) => {
+            if (v.reference.toLowerCase() !== reference.toLowerCase()) return v;
+            const prev = v.wordErrors ?? {};
+            return {
+              ...v,
+              wordErrors: {
+                ...prev,
+                [normalizedWord]: (prev[normalizedWord] ?? 0) + 1,
+              },
+            };
+          }),
+        }));
+      },
+
       removeVerse: (reference) => {
         set((s) => ({
           verses: s.verses.filter(
@@ -62,6 +84,13 @@ export const useLibraryStore = create<LibraryState>()(
       dueCount: () => get().verses.filter(isDue).length,
 
       dueVerses: () => sortByUrgency(get().verses.filter(isDue)),
+
+      getWordErrors: (reference) => {
+        const verse = get().verses.find(
+          (v) => v.reference.toLowerCase() === reference.toLowerCase()
+        );
+        return verse?.wordErrors ?? {};
+      },
     }),
     { name: 'bible-memory-library' }
   )

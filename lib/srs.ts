@@ -23,6 +23,8 @@ export interface LibraryVerse {
   reviewCount: number;         // total times reviewed
   correctStreak: number;       // consecutive successful reviews
   masteredDate: string | null; // date mastered (level 5), else null
+  /** Per-word error history: normalized word → total error count across all sessions */
+  wordErrors: Record<string, number>;
 }
 
 /**
@@ -49,6 +51,7 @@ export function createLibraryVerse(
     reviewCount: 0,
     correctStreak: 0,
     masteredDate: null,
+    wordErrors: {},
   };
 }
 
