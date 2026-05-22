@@ -239,28 +239,30 @@ export default function HomePage() {
       </header>
 
       <main className="home-main">
-        {/* How it works */}
-        <div className="how-it-works">
-          <div className="how-step">
-            <span className="how-num">1</span>
-            <span className="how-txt">Choose a verse or passage</span>
+        {/* How it works — only shown to first-time visitors alongside the voice modal */}
+        {!hasSelectedVoice && (
+          <div className="how-it-works">
+            <div className="how-step">
+              <span className="how-num">1</span>
+              <span className="how-txt">Choose a verse or passage</span>
+            </div>
+            <div className="how-arrow">→</div>
+            <div className="how-step">
+              <span className="how-num">2</span>
+              <span className="how-txt">Listen &amp; repeat</span>
+            </div>
+            <div className="how-arrow">→</div>
+            <div className="how-step">
+              <span className="how-num">3</span>
+              <span className="how-txt">Build phrase by phrase</span>
+            </div>
+            <div className="how-arrow">→</div>
+            <div className="how-step">
+              <span className="how-num">4</span>
+              <span className="how-txt">Write it on your heart</span>
+            </div>
           </div>
-          <div className="how-arrow">→</div>
-          <div className="how-step">
-            <span className="how-num">2</span>
-            <span className="how-txt">Listen & repeat</span>
-          </div>
-          <div className="how-arrow">→</div>
-          <div className="how-step">
-            <span className="how-num">3</span>
-            <span className="how-txt">Build phrase by phrase</span>
-          </div>
-          <div className="how-arrow">→</div>
-          <div className="how-step">
-            <span className="how-num">4</span>
-            <span className="how-txt">Write it on your heart</span>
-          </div>
-        </div>
+        )}
 
         {/* Search */}
         <VerseSearch
