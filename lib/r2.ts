@@ -42,6 +42,9 @@ function getR2Client(): S3Client | null {
     region: 'auto',
     endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
     credentials: { accessKeyId, secretAccessKey },
+    // Required for Cloudflare R2 — without this the SDK uses virtual-hosted
+    // style (bucket.accountid.r2.cloudflarestorage.com) which R2 doesn't support.
+    forcePathStyle: true,
   });
 }
 
