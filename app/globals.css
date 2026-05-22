@@ -494,6 +494,7 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 .phrase-num {
@@ -512,6 +513,7 @@ input, select, textarea { font-family: inherit; }
 
 .phrase-input {
   flex: 1;
+  min-width: 0;
   background: rgba(255,255,255,0.04);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -527,7 +529,7 @@ input, select, textarea { font-family: inherit; }
   background: rgba(var(--gold-rgb),0.04);
 }
 
-.phrase-actions { display: flex; gap: 4px; }
+.phrase-actions { display: flex; gap: 4px; flex-shrink: 0; }
 
 .phrase-action-btn {
   width: 28px;
@@ -1239,6 +1241,10 @@ input, select, textarea { font-family: inherit; }
 .voice-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .voice-meta { font-size: 11px; color: var(--text-muted); }
 
+.preview-play-btn {
+  flex-shrink: 0 !important;
+}
+
 /* Slider */
 .slider-row {
   display: flex;
@@ -1284,6 +1290,7 @@ input, select, textarea { font-family: inherit; }
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(var(--gold-rgb), 0.35);
   transition: transform 0.15s ease;
+  margin-top: -7px;
 }
 
 .settings-slider::-webkit-slider-thumb:hover {

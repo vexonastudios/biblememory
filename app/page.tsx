@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import VerseSearch from '@/components/VerseSearch';
 import { parseVerseIntoPhrases, Phrase } from '@/lib/phraseParser';
@@ -103,6 +103,7 @@ export default function HomePage() {
   const [error, setError] = useState('');
   const [fetched, setFetched] = useState<FetchedVerse | null>(null);
   const [editedPhrases, setEditedPhrases] = useState<Phrase[]>([]);
+  const phraseEditorRef = useRef<HTMLDivElement>(null);
 
   const handleTranslationChange = (t: 'BSB' | 'KJV') => {
     setLocalTranslation(t);
@@ -131,6 +132,10 @@ export default function HomePage() {
       };
       setFetched(v);
       setEditedPhrases(phrases);
+      // Scroll to phrase editor after a short delay so the DOM has rendered
+      setTimeout(() => {
+        phraseEditorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 80);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -288,11 +293,7 @@ export default function HomePage() {
               )}
             </div>
 
-            <blockquote className="verse-full-text">
-              {fetched.text}
-            </blockquote>
-
-            <div className="phrase-editor">
+            <div className="phrase-editor" ref={phraseEditorRef}>
               <h3 className="editor-title">
                 Phrases <span className="editor-count">({editedPhrases.length})</span>
               </h3>
@@ -472,6 +473,7 @@ export default function HomePage() {
                       cursor: 'pointer',
                       width: '32px',
                       height: '32px',
+                      flexShrink: 0,
                       transition: 'all 0.15s ease'
                     }}
                   >
