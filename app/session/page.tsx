@@ -143,19 +143,12 @@ export default function SessionPage() {
       setTranscript('');
       setMatchScore(0);
       latestTranscriptRef.current = '';
-      // Accumulate all segments here in the caller — speechRecognizer reports
-      // each new segment individually, so we build up the full transcript ourselves.
-      let accumulated = '';
       startListening({
-        onResult: ({ transcript: segment, isFinal }) => {
-          if (isFinal) {
-            accumulated += (accumulated ? ' ' : '') + segment;
-          }
-          // Show finalized text + current interim segment
-          const display = isFinal ? accumulated : (accumulated ? accumulated + ' ' + segment : segment);
-          latestTranscriptRef.current = display;
-          setTranscript(display);
-          const score = fuzzyMatch(display, targetText);
+        onResult: ({ transcript: t }) => {
+          // Track latest for the onEnd grace-period check
+          latestTranscriptRef.current = t;
+          setTranscript(t);
+          const score = fuzzyMatch(t, targetText);
           setMatchScore(score);
           if (score >= matchThreshold) {
             stopListening();
@@ -166,9 +159,9 @@ export default function SessionPage() {
         },
         onEnd: () => {
           if (phaseRef.current !== 'listening') return;
-          // Grace period — browser fires onEnd before the last segment is
-          // always finalized. Wait 400ms then do one last check on whatever
-          // we have accumulated before declaring failure.
+          // Grace period — the browser sometimes fires onEnd before the last
+          // word or two are finalized. Wait 400 ms, then do one final check
+          // before declaring failure.
           setTimeout(() => {
             if (phaseRef.current !== 'listening') return;
             const finalScore = fuzzyMatch(latestTranscriptRef.current, targetText);
