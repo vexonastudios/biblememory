@@ -76,7 +76,16 @@ self.addEventListener('fetch', (event) => {
   // Other API routes: network only
   if (url.pathname.startsWith('/api/')) return;
 
-  // App shell: stale-while-revalidate
+  // App shell: skip navigation requests (full-page HTML loads) — always
+  // fetch from the network so Next.js gets fresh HTML with valid JS bundle
+  // references. Serving stale HTML causes hydration failures and phantom
+  // redirects back to "/" when the old chunk URLs no longer exist.
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  // Static assets (JS, CSS, images, fonts): stale-while-revalidate
   event.respondWith(staleWhileRevalidate(request));
 });
 
