@@ -144,13 +144,17 @@ export default function SessionPage() {
       setMatchScore(0);
       latestTranscriptRef.current = '';
       startListening({
-        onResult: ({ transcript: t }) => {
-          // Track latest for the onEnd grace-period check
+        onResult: ({ transcript: t, isFinal }) => {
+          // Always update display and score bar so the user sees live feedback
           latestTranscriptRef.current = t;
           setTranscript(t);
           const score = fuzzyMatch(t, targetText);
           setMatchScore(score);
-          if (score >= matchThreshold) {
+          // Only auto-advance on a FINALIZED result — never on interim speech.
+          // Interim transcripts are partial (still growing) and can score above
+          // the threshold before the user has finished speaking, which would
+          // cut them off mid-sentence.
+          if (isFinal && score >= matchThreshold) {
             stopListening();
             setFailCount(0);
             setPhase('passed');
