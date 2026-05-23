@@ -98,18 +98,33 @@ export function fuzzyMatch(transcript: string, target: string): number {
 
   if (tgtWords.length === 0) return 1.0;
 
-  // Count how many target words appear in the transcript (in order)
+  // Count how many target words appear in the transcript (in order).
+  // Two key improvements over a naïve approach:
+  //  1. Per-word similarity threshold is 0.55 (not 0.8) so phonetically
+  //     close mishears like "tongues"→"tons" (score ≈ 0.57) still count.
+  //  2. When a target word can't be found, we do NOT advance tIdx — the
+  //     search cursor stays put so subsequent target words still have a
+  //     chance to match. Without this, one missed word wipes out every
+  //     word that follows it (e.g. "of men and of angels" all fail because
+  //     "tongues" couldn't match "tons").
   let matchCount = 0;
   let tIdx = 0;
 
   for (const word of tgtWords) {
-    while (tIdx < tWords.length) {
-      if (tWords[tIdx] === word || levenshteinSimilarity(tWords[tIdx], word) > 0.8) {
+    let matched = false;
+    let scan = tIdx;
+    while (scan < tWords.length) {
+      if (tWords[scan] === word || levenshteinSimilarity(tWords[scan], word) > 0.55) {
         matchCount++;
-        tIdx++;
+        tIdx = scan + 1; // advance past the matched transcript word
+        matched = true;
         break;
       }
-      tIdx++;
+      scan++;
+    }
+    // If no match found, leave tIdx where it is (don't consume transcript words)
+    if (!matched) {
+      // tIdx intentionally unchanged — next target word searches from same position
     }
   }
 
